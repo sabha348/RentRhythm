@@ -89,7 +89,7 @@ GEMINI_MODEL=gemini-3.6-flash
 - **MealVote:** tenantId, date, meal (lunch|dinner), going (bool)
 - **MealAttendance:** tenantId, date, meal, ate (bool)
 - **UtilityCharge:** tenantId, month (YYYY-MM), label, amount
-- **Invoice:** tenantId, month, paypalInvoiceId, invoiceNumber, status, total, dueDate, createdAt; unique on (tenantId, month)
+- **Invoice:** tenantId, month, paypalInvoiceId, invoiceNumber, status, total, dueDate, paidAt (for late-payer flags), createdAt; unique on (tenantId, month)
 
 ## Billing rules (`lib/billing.ts`, pure functions, unit-tested)
 Line items:
@@ -137,7 +137,7 @@ The repo is empty apart from this file. Work in this order, stopping after each 
 0d. ✅ `lib/agent.ts` + `scripts/agent.ts "<request>"`: Gemini + toolkit (only list/get/reminder/QR tools, `sandbox: true`), print each tool call and the final answer. Test: "List my unpaid invoices" and "Send a friendly reminder for invoice <ID>".
 
 Then Build step 1:
-1. Schema + seed; run the seed.
+1. ✅ Schema + seed; run the seed.
 2. `lib/billing.ts` + tests (walk-ins, voted-but-absent, zero meals, payday clamping, rounding); run tests.
 3. `sendMonthlyInvoice`: send ONE tenant's real sandbox invoice; show the line items PayPal returned.
 4. `/owner` page: tenant table (payday, due date, bill status for selected month) with "Preview bill" and "Send via PayPal" buttons. Function over looks.
