@@ -36,12 +36,13 @@ Technological implementation (non-trivial PayPal + AI use) · Design (complete p
 - YouTube demo video under 3 minutes, public, no copyrighted music.
 - Description listing the AI tools/models used and how.
 
-## Validated so far (Oct 27–28, local machine)
-- `scripts/create-invoice.ts` + `scripts/check-invoice.ts`: created, sent and paid a 3-line sandbox invoice ($200 rent + 12 × $3 meals + $15 AC = $251). Status went to PAID.
-- `scripts/agent.ts`: Gemini + `@paypal/agent-toolkit` agent successfully listed unpaid invoices, sent a reminder, and generated an invoice QR code (saved to `output/invoice-qr.png`).
+## Validated earlier (Oct 27–28, on a local machine; that code is NOT in this repo)
+The approach was proven with throwaway scripts that no longer exist. The repo starts fresh; rebuild these capabilities inside the app (Phase 0).
+- PayPal Invoicing v2: created, sent and paid a 3-line sandbox invoice ($200 rent + 12 × $3 meals + $15 AC = $251). Status went to PAID.
+- Gemini + `@paypal/agent-toolkit` agent: listed unpaid invoices, sent a reminder, and generated an invoice QR code.
 
 ## Known gotchas (learned during validation)
-- `@paypal/agent-toolkit` **1.11.0** builds tools for AI SDK v4; the current `ai` (v7) needs them re-wrapped. The loop in `scripts/agent.ts` does this — reuse it.
+- `@paypal/agent-toolkit` **1.11.0** builds tools for AI SDK v4; the current `ai` (v7) expects a different tool format. Write a small adapter that re-wraps each toolkit tool for the current AI SDK (and logs each call). Read the toolkit source in node_modules to get this right.
 - Toolkit **defaults to production** unless `context: { sandbox: true }` is set. Always set it.
 - Gemini: default model is `gemini-3.6-flash` (from the `GEMINI_MODEL` env var). `gemini-3.8-flash` returned repeated 503 overload errors on the free tier. Handle 429/503 gracefully with a friendly message.
 - PayPal sends **no content** on a successful invoice reminder; empty result = success.
@@ -74,7 +75,8 @@ GEMINI_MODEL=gemini-3.6-flash
 - Drizzle ORM + SQLite (better-sqlite3), DB file in `data/` (gitignored)
 - Vitest for tests
 - Vercel AI SDK + `@ai-sdk/google` + `@paypal/agent-toolkit`
-- Shared PayPal code in `lib/paypal.ts` (auth, create/send/get invoice); scripts import from it
+- Shared PayPal code in `lib/paypal.ts` (OAuth token, create/send/get invoice, generate QR); everything else imports from it
+- Agent code in `lib/agent.ts` (Gemini model + toolkit adapter + system prompt)
 - Bryntum Calendar (45-day trial) — later phase
 - Deploy on Render (later phase)
 
@@ -123,8 +125,15 @@ Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 
 | Nov 10 | Record video |
 | Nov 11 | Submit |
 
-## Current phase: Build step 1 (foundation)
-Work in this order, stopping after each to report:
+## Current phase: Phase 0 (fresh setup) then Build step 1 (foundation)
+The repo is empty apart from this file. Work in this order, stopping after each to report:
+
+0a. ✅ Scaffold the Next.js + TypeScript app with pinned versions. Add `.gitignore` (`.env`, `data/`, `output/`, `node_modules/`), `.env.example` with empty values, an MIT `LICENSE`, and a short README stub.
+0b. Connectivity check: get a PayPal sandbox OAuth token and make one tiny Gemini call. If either fails, stop and report which domain is blocked.
+0c. `lib/paypal.ts`: OAuth token, create DRAFT invoice (Invoicing v2), send it, get it, generate its QR code (multipart parsing per gotchas). Add `scripts/smoke-invoice.ts` that creates and sends a 3-line test invoice and prints the invoice ID, status, total and payer link (`detail.metadata.recipient_view_url`). Check PayPal's current Invoicing v2 docs for the exact schema. Run it.
+0d. `lib/agent.ts` + `scripts/agent.ts "<request>"`: Gemini + toolkit (only list/get/reminder/QR tools, `sandbox: true`), print each tool call and the final answer. Test: "List my unpaid invoices" and "Send a friendly reminder for invoice <ID>".
+
+Then Build step 1:
 1. Schema + seed; run the seed.
 2. `lib/billing.ts` + tests (walk-ins, voted-but-absent, zero meals, payday clamping, rounding); run tests.
 3. `sendMonthlyInvoice`: send ONE tenant's real sandbox invoice; show the line items PayPal returned.
