@@ -51,7 +51,7 @@ The approach was proven with throwaway scripts that no longer exist. The repo st
 - Invoice numbers must be unique per PayPal account.
 - The sandbox has one buyer account, so all seeded tenants use `PAYPAL_BUYER_EMAIL`.
 - Paying invoices is done by the human in a browser (sandbox buyer login); code can't do it.
-- **Sending to an India-registered sandbox buyer fails** with `INR_FOREIGN_CURRENCY_BLOCKED` (406), even with a US billing address on the invoice. `PAYPAL_BUYER_EMAIL` must be a sandbox personal account created with country = United States.
+- **Sending to an India-registered sandbox buyer fails** with `INR_FOREIGN_CURRENCY_BLOCKED` (406), even with a US billing address on the invoice. `PAYPAL_BUYER_EMAIL` must be a US-registered sandbox account (a US Business account works as the recipient too) that is not the merchant account.
 - In the Claude Code cloud container, Node's built-in `fetch` ignores `HTTPS_PROXY`; run scripts with `NODE_USE_ENV_PROXY=1` there. Not needed locally or on Render.
 
 ## Rules
@@ -132,7 +132,7 @@ The repo is empty apart from this file. Work in this order, stopping after each 
 
 0a. ✅ Scaffold the Next.js + TypeScript app with pinned versions. Add `.gitignore` (`.env`, `data/`, `output/`, `node_modules/`), `.env.example` with empty values, an MIT `LICENSE`, and a short README stub.
 0b. ✅ Connectivity check: get a PayPal sandbox OAuth token and make one tiny Gemini call. If either fails, stop and report which domain is blocked.
-0c. `lib/paypal.ts`: OAuth token, create DRAFT invoice (Invoicing v2), send it, get it, generate its QR code (multipart parsing per gotchas). Add `scripts/smoke-invoice.ts` that creates and sends a 3-line test invoice and prints the invoice ID, status, total and payer link (`detail.metadata.recipient_view_url`). Check PayPal's current Invoicing v2 docs for the exact schema. Run it.
+0c. ✅ `lib/paypal.ts`: OAuth token, create DRAFT invoice (Invoicing v2), send it, get it, generate its QR code (multipart parsing per gotchas). Add `scripts/smoke-invoice.ts` that creates and sends a 3-line test invoice and prints the invoice ID, status, total and payer link (`detail.metadata.recipient_view_url`). Check PayPal's current Invoicing v2 docs for the exact schema. Run it.
 0d. `lib/agent.ts` + `scripts/agent.ts "<request>"`: Gemini + toolkit (only list/get/reminder/QR tools, `sandbox: true`), print each tool call and the final answer. Test: "List my unpaid invoices" and "Send a friendly reminder for invoice <ID>".
 
 Then Build step 1:
