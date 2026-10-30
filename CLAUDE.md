@@ -44,6 +44,7 @@ The approach was proven with throwaway scripts that no longer exist. The repo st
 ## Known gotchas (learned during validation)
 - `@paypal/agent-toolkit` **1.11.0** builds tools for AI SDK v4; the current `ai` (v7) expects a different tool format. Write a small adapter that re-wraps each toolkit tool for the current AI SDK (and logs each call). Read the toolkit source in node_modules to get this right.
 - Toolkit **defaults to production** unless `context: { sandbox: true }` is set. Always set it.
+- Toolkit hard-codes the legacy host `api.sandbox.paypal.com`; `lib/agent.ts` repoints `toolkit.client._baseUrl` to `api-m.sandbox.paypal.com` (the other host is blocked in the cloud sandbox).
 - Gemini: default model is `gemini-3.6-flash` (from the `GEMINI_MODEL` env var). `gemini-3.8-flash` returned repeated 503 overload errors on the free tier. Handle 429/503 gracefully with a friendly message.
 - PayPal sends **no content** on a successful invoice reminder; empty result = success.
 - Invoice QR endpoint returns a **multipart** body wrapping a base64 PNG. Parse only the text between the blank line and the closing boundary. Never pass base64 to the model; save to a file and give it the path.
@@ -133,7 +134,7 @@ The repo is empty apart from this file. Work in this order, stopping after each 
 0a. ✅ Scaffold the Next.js + TypeScript app with pinned versions. Add `.gitignore` (`.env`, `data/`, `output/`, `node_modules/`), `.env.example` with empty values, an MIT `LICENSE`, and a short README stub.
 0b. ✅ Connectivity check: get a PayPal sandbox OAuth token and make one tiny Gemini call. If either fails, stop and report which domain is blocked.
 0c. ✅ `lib/paypal.ts`: OAuth token, create DRAFT invoice (Invoicing v2), send it, get it, generate its QR code (multipart parsing per gotchas). Add `scripts/smoke-invoice.ts` that creates and sends a 3-line test invoice and prints the invoice ID, status, total and payer link (`detail.metadata.recipient_view_url`). Check PayPal's current Invoicing v2 docs for the exact schema. Run it.
-0d. `lib/agent.ts` + `scripts/agent.ts "<request>"`: Gemini + toolkit (only list/get/reminder/QR tools, `sandbox: true`), print each tool call and the final answer. Test: "List my unpaid invoices" and "Send a friendly reminder for invoice <ID>".
+0d. ✅ `lib/agent.ts` + `scripts/agent.ts "<request>"`: Gemini + toolkit (only list/get/reminder/QR tools, `sandbox: true`), print each tool call and the final answer. Test: "List my unpaid invoices" and "Send a friendly reminder for invoice <ID>".
 
 Then Build step 1:
 1. Schema + seed; run the seed.

@@ -8,12 +8,17 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "smoke:invoice": "tsx --env-file-if-exists=.env scripts/smoke-invoice.ts"
+    "smoke:invoice": "tsx --env-file-if-exists=.env scripts/smoke-invoice.ts",
+    "agent": "tsx --env-file-if-exists=.env scripts/agent.ts"
   },
   "dependencies": {
+    "@ai-sdk/google": "4.0.109",
+    "@paypal/agent-toolkit": "1.11.0",
+    "ai": "7.0.158",
     "next": "16.4.3",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
