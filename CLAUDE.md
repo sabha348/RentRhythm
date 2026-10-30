@@ -51,6 +51,8 @@ The approach was proven with throwaway scripts that no longer exist. The repo st
 - Invoice numbers must be unique per PayPal account.
 - The sandbox has one buyer account, so all seeded tenants use `PAYPAL_BUYER_EMAIL`.
 - Paying invoices is done by the human in a browser (sandbox buyer login); code can't do it.
+- **Sending to an India-registered sandbox buyer fails** with `INR_FOREIGN_CURRENCY_BLOCKED` (406), even with a US billing address on the invoice. `PAYPAL_BUYER_EMAIL` must be a sandbox personal account created with country = United States.
+- In the Claude Code cloud container, Node's built-in `fetch` ignores `HTTPS_PROXY`; run scripts with `NODE_USE_ENV_PROXY=1` there. Not needed locally or on Render.
 
 ## Rules
 - **PayPal SANDBOX only** (`https://api-m.sandbox.paypal.com`).
