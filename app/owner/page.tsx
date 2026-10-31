@@ -2,7 +2,9 @@ import Link from "next/link";
 import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { monthLabel, previewMonthlyBill } from "@/lib/invoicing";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { OwnerTable, type OwnerRow } from "./owner-table";
+import { SyncButton } from "./sync-button";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +44,13 @@ export default async function OwnerPage({ searchParams }: { searchParams: Promis
       tenant: { id: tenant.id, name: tenant.name, room: tenant.room, paydayDay: tenant.paydayDay },
       bill,
       invoice: invoice
-        ? { status: invoice.status, invoiceNumber: invoice.invoiceNumber, total: invoice.total, dueDate: invoice.dueDate }
+        ? {
+            status: invoice.status,
+            invoiceNumber: invoice.invoiceNumber,
+            total: invoice.total,
+            dueDate: invoice.dueDate,
+            paidAt: invoice.paidAt,
+          }
         : null,
     };
   });
@@ -70,7 +78,10 @@ export default async function OwnerPage({ searchParams }: { searchParams: Promis
         Meals: ${property.mealPriceVoted.toFixed(2)} voted · ${property.mealPriceWalkIn.toFixed(2)} walk-in. Each bill is
         due on the tenant&apos;s payday the following month + {property.graceDays} grace days.
       </p>
+      {/* Picks up PAID from the PayPal webhook without a reload. */}
+      <AutoRefresh seconds={5} />
       <OwnerTable month={month} currency={property.currency} rows={rows} />
+      <SyncButton />
     </main>
   );
 }

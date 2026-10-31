@@ -7,9 +7,10 @@ import * as schema from "./schema";
 
 export const DB_PATH = process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "rentrhythm.db");
 
-function open() {
-  mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  const sqlite = new Database(DB_PATH);
+/** Opens a DB file (or ":memory:" in tests) and applies migrations. */
+export function openDb(file: string) {
+  if (file !== ":memory:") mkdirSync(path.dirname(file), { recursive: true });
+  const sqlite = new Database(file);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   const db = drizzle(sqlite, { schema });
@@ -17,13 +18,13 @@ function open() {
   return db;
 }
 
-export type DB = ReturnType<typeof open>;
+export type DB = ReturnType<typeof openDb>;
 
 // One connection per process (survives Next.js dev hot reloads).
 const globalForDb = globalThis as unknown as { rentrhythmDb?: DB };
 
 export function getDb(): DB {
-  return (globalForDb.rentrhythmDb ??= open());
+  return (globalForDb.rentrhythmDb ??= openDb(DB_PATH));
 }
 
 export { schema };

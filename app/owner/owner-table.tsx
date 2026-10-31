@@ -7,7 +7,7 @@ import { type SendActionResult, sendInvoiceAction } from "./actions";
 export type OwnerRow = {
   tenant: { id: number; name: string; room: string; paydayDay: number };
   bill: Bill;
-  invoice: { status: string; invoiceNumber: string; total: number; dueDate: string } | null;
+  invoice: { status: string; invoiceNumber: string; total: number; dueDate: string; paidAt: string | null } | null;
 };
 
 const cell = { borderBottom: "1px solid #ddd", padding: "6px 10px", textAlign: "left" as const };
@@ -58,7 +58,11 @@ export function OwnerTable({ month, currency, rows }: { month: string; currency:
                   {money(invoice?.total ?? bill.total)} {currency}
                 </td>
                 <td style={cell}>
-                  {invoice ? (
+                  {invoice?.status === "PAID" || invoice?.status === "MARKED_AS_PAID" ? (
+                    <span title={invoice.invoiceNumber} style={{ color: "#15803d", fontWeight: 600 }}>
+                      ✓ PAID{invoice.paidAt && ` ${invoice.paidAt.slice(0, 10)}`}
+                    </span>
+                  ) : invoice ? (
                     <span title={invoice.invoiceNumber}>{invoice.status}</span>
                   ) : (
                     <span style={{ color: "#888" }}>Not sent</span>

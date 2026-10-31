@@ -57,6 +57,7 @@ async function paypalRequest(
   pathname: string,
   body?: unknown,
   extraHeaders: Record<string, string> = {},
+  rawBody?: string, // sent as-is instead of JSON.stringify(body)
 ): Promise<Response> {
   const res = await fetch(`${PAYPAL_API_BASE}${pathname}`, {
     method,
@@ -65,7 +66,7 @@ async function paypalRequest(
       "Content-Type": "application/json",
       ...extraHeaders,
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: rawBody ?? (body === undefined ? undefined : JSON.stringify(body)),
   });
   if (!res.ok) {
     const text = await res.text();
@@ -131,7 +132,7 @@ export type PayPalInvoice = {
   items?: { name: string; quantity: string; unit_amount: Money; description?: string }[];
   amount?: { currency_code: string; value: string };
   due_amount?: Money;
-  payments?: { paid_amount?: Money };
+  payments?: { paid_amount?: Money; transactions?: { payment_date?: string; amount?: Money }[] };
 };
 
 const money = (currency: string, value: number): Money => ({
@@ -194,6 +195,41 @@ export async function sendInvoice(invoiceId: string): Promise<void> {
 export async function getInvoice(invoiceId: string): Promise<PayPalInvoice> {
   const res = await paypalRequest("GET", `/v2/invoicing/invoices/${invoiceId}`);
   return (await res.json()) as PayPalInvoice;
+}
+
+// ---------- Webhooks ----------
+
+/** The PayPal headers needed to verify a webhook delivery. */
+export const WEBHOOK_HEADERS = {
+  auth_algo: "paypal-auth-algo",
+  cert_url: "paypal-cert-url",
+  transmission_id: "paypal-transmission-id",
+  transmission_sig: "paypal-transmission-sig",
+  transmission_time: "paypal-transmission-time",
+} as const;
+
+/**
+ * Asks PayPal whether a webhook delivery is genuine. The raw body is embedded as-is, because
+ * re-serializing parsed JSON can change it and make verification fail.
+ */
+export async function verifyWebhookSignature(
+  headers: Headers,
+  rawBody: string,
+  webhookId: string,
+): Promise<boolean> {
+  const fields = Object.entries(WEBHOOK_HEADERS).map(([field, header]) => [field, headers.get(header)] as const);
+  if (fields.some(([, value]) => !value)) return false;
+  const body = `{${fields.map(([k, v]) => `${JSON.stringify(k)}:${JSON.stringify(v)}`).join(",")},"webhook_id":${JSON.stringify(webhookId)},"webhook_event":${rawBody}}`;
+  try {
+    const res = await paypalRequest("POST", "/v1/notifications/verify-webhook-signature", undefined, {}, body);
+    const result = (await res.json()) as { verification_status?: string };
+    return result.verification_status === "SUCCESS";
+  } catch (err) {
+    // PayPal rejecting the headers themselves (4xx) means "not genuine"; 5xx/network errors propagate
+    // so the route answers 5xx and PayPal retries a real delivery.
+    if (err instanceof PayPalError && err.status >= 400 && err.status < 500) return false;
+    throw err;
+  }
 }
 
 // ---------- QR code ----------

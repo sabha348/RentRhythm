@@ -13,7 +13,8 @@
     "db:generate": "drizzle-kit generate",
     "seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
     "test": "vitest run",
-    "send-invoice": "tsx --env-file-if-exists=.env scripts/send-invoice.ts"
+    "send-invoice": "tsx --env-file-if-exists=.env scripts/send-invoice.ts",
+    "register-webhook": "tsx --env-file-if-exists=.env scripts/register-webhook.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "4.0.109",

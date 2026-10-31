@@ -4,7 +4,7 @@ import { MEALS } from "@/lib/db/schema";
 import { dayLabel, timeLabel } from "@/lib/format";
 import { headcount, servingList } from "@/lib/meals";
 import { getVotingWindow, loadDay } from "@/lib/meals-db";
-import { AutoRefresh } from "./auto-refresh";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { ServingLog } from "./serving-log";
 
 export const dynamic = "force-dynamic";

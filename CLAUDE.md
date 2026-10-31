@@ -55,6 +55,8 @@ The approach was proven with throwaway scripts that no longer exist. The repo st
 - **Sending to an India-registered sandbox buyer fails** with `INR_FOREIGN_CURRENCY_BLOCKED` (406), even with a US billing address on the invoice. `PAYPAL_BUYER_EMAIL` must be a sandbox **personal** account created with country = United States.
 - **Don't set `invoicer.email_address`.** If it doesn't match the account that owns the API credentials, send fails with `USER_NOT_FOUND` (422). Omitted, PayPal invoices as the credentials' account. `PAYPAL_BUSINESS_EMAIL` is therefore informational only.
 - **Gemini free tier has a small per-day request cap per model** (hit on Oct 31 after ~a dozen agent runs; each run is one request per step). The 429 says `GenerateRequestsPerDayPerProjectPerModel-FreeTier` with a retry delay of hours, so `runAgent` uses `maxRetries: 1` (the SDK would otherwise wait out that delay) plus a `timeout`.
+- Webhook signature verification (`/v1/notifications/verify-webhook-signature`) must embed the **raw** body, not re-serialized JSON. PayPal answers 4xx (not `FAILURE`) when the transmission headers are malformed; treat that as "not genuine" (401), and only let 5xx/network errors become a 500 so PayPal retries.
+- The webhook handler trusts PayPal's API, not the payload: it re-fetches the invoice for status and `payments.transactions[].payment_date`. Event IDs go in `webhook_events` so redeliveries apply once.
 - In React effects, don't return `el.scrollIntoView(...)` from an arrow: newer Chromium returns a Promise and React crashes with "destroy is not a function".
 - In the Claude Code cloud container, Node's built-in `fetch` ignores `HTTPS_PROXY`; run scripts with `NODE_USE_ENV_PROXY=1` there. Not needed locally or on Render.
 
@@ -72,6 +74,7 @@ PAYPAL_CLIENT_ID
 PAYPAL_CLIENT_SECRET
 PAYPAL_BUSINESS_EMAIL
 PAYPAL_BUYER_EMAIL
+PAYPAL_WEBHOOK_ID      # from `npm run register-webhook -- https://<app>/api/paypal/webhook`
 GOOGLE_GENERATIVE_AI_API_KEY
 GEMINI_MODEL=gemini-3.6-flash
 DEMO_TODAY=            # optional YYYY-MM-DD: pins "today" for collections/agent rehearsals
@@ -139,7 +142,7 @@ Work in this order, stopping after each to report:
 
 1. ✅ `lib/collections.ts` (pure, tested): per tenant, the current invoice's payday (passed?), due date, status, days overdue; late history (paid after due date, or unpaid past it); repeat late payer = late in ≥2 of the last 3 decided months. Invoice `source` column; seed 2 past months of paid history (Daniel late both times). Agent "today" in property timezone; `DEMO_TODAY=YYYY-MM-DD` overrides it for rehearsals.
 2. ✅ (live chat-UI run pending Gemini quota) `/owner/agent` chat: read-only `get_collections_overview` tool + the 4 PayPal tools; reminders only for unpaid invoices in our DB; suggested prompt; shows each tool step; friendly 429/503. Test the demo prompt against the sandbox.
-3. `app/api/paypal/webhook`: verify signature (`PAYPAL_WEBHOOK_ID`), `INVOICING.INVOICE.PAID` → status + `paidAt`, idempotent; `scripts/register-webhook.ts`; `/owner` auto-refresh + "Sync from PayPal" fallback. Tests with sample payloads.
+3. ✅ `app/api/paypal/webhook`: verify signature (`PAYPAL_WEBHOOK_ID`), `INVOICING.INVOICE.PAID` → status + `paidAt`, idempotent; `scripts/register-webhook.ts`; `/owner` auto-refresh + "Sync from PayPal" fallback. Tests with sample payloads.
 4. Basic Render deploy + live test: owner pays an invoice as the sandbox buyer; `/owner` turns PAID live.
 
 ### Done: Build step 2 (meal voting + cook headcount)

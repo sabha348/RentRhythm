@@ -79,6 +79,15 @@ export const invoices = sqliteTable(
   (t) => [unique().on(t.tenantId, t.month)],
 );
 
+// PayPal webhook events we have processed, so a redelivered event is applied only once.
+export const webhookEvents = sqliteTable("webhook_events", {
+  id: text("id").primaryKey(), // PayPal event ID (WH-...)
+  eventType: text("event_type").notNull(),
+  resourceId: text("resource_id"), // e.g. the PayPal invoice ID
+  outcome: text("outcome").notNull(), // what we did, for debugging
+  receivedAt: text("received_at").notNull().default(sql`(datetime('now'))`),
+});
+
 export type Property = typeof properties.$inferSelect;
 export type Tenant = typeof tenants.$inferSelect;
 export type MealVote = typeof mealVotes.$inferSelect;
