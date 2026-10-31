@@ -4,7 +4,10 @@
 // already voted for tomorrow.
 // Usage: npm run seed
 //        SEED_MONTH=2026-10 npm run seed
-import { rmSync } from "node:fs";
+// Existing invoice records are kept (they mirror real PayPal sandbox invoices); set
+// SEED_RESET_INVOICES=1 to drop them too.
+import { existsSync, rmSync } from "node:fs";
+import Database from "better-sqlite3";
 import { DB_PATH, getDb, schema } from "../lib/db";
 import { MEALS } from "../lib/db/schema";
 import { addDays, localDate } from "../lib/meals";
@@ -60,6 +63,28 @@ function datesBetween(from: string, to: string): string[] {
   return dates;
 }
 
+type SavedInvoice = Omit<typeof schema.invoices.$inferSelect, "id" | "tenantId"> & { tenantName: string };
+
+// Read invoice rows (with tenant names, since tenant IDs are regenerated) before the DB is reset.
+function saveInvoices(): SavedInvoice[] {
+  if (process.env.SEED_RESET_INVOICES === "1" || !existsSync(DB_PATH)) return [];
+  const old = new Database(DB_PATH, { readonly: true });
+  try {
+    return old
+      .prepare(
+        `SELECT t.name AS tenantName, i.month, i.paypal_invoice_id AS paypalInvoiceId,
+                i.invoice_number AS invoiceNumber, i.status, i.total, i.due_date AS dueDate,
+                i.paid_at AS paidAt, i.created_at AS createdAt
+         FROM invoices i JOIN tenants t ON t.id = i.tenant_id`,
+      )
+      .all() as SavedInvoice[];
+  } catch {
+    return []; // older or empty DB without these tables
+  } finally {
+    old.close();
+  }
+}
+
 function main() {
   const today = localDate(new Date(), TIMEZONE);
   const tomorrow = addDays(today, 1);
@@ -71,6 +96,7 @@ function main() {
   const email = process.env.PAYPAL_BUYER_EMAIL;
   if (!email) throw new Error("Missing env var PAYPAL_BUYER_EMAIL (all seeded tenants use the sandbox buyer)");
 
+  const savedInvoices = saveInvoices();
   for (const suffix of ["", "-wal", "-shm"]) rmSync(DB_PATH + suffix, { force: true });
   const db = getDb();
   const rand = mulberry32(20261028);
@@ -121,6 +147,13 @@ function main() {
         }
       }
     }
+
+    const tenantIds = new Map(tx.select().from(schema.tenants).all().map((t) => [t.name, t.id]));
+    for (const { tenantName, ...invoice } of savedInvoices) {
+      const tenantId = tenantIds.get(tenantName);
+      if (tenantId) tx.insert(schema.invoices).values({ ...invoice, tenantId }).run();
+      else console.warn(`Dropping invoice ${invoice.invoiceNumber}: tenant ${tenantName} no longer seeded`);
+    }
   });
 
   // Summary so the seeded behaviour can be eyeballed.
@@ -152,6 +185,7 @@ function main() {
 
   console.log(`Seeded ${DB_PATH}: history ${history[0]} → ${history.at(-1)} (${TIMEZONE}), today ${today}\n`);
   console.table(counts);
+  if (savedInvoices.length) console.log(`Kept ${savedInvoices.length} existing invoice records (SEED_RESET_INVOICES=1 drops them).\n`);
   console.log(`Billing summary for ${month}:`);
   console.table(rows);
   console.log(`Votes for today (${today}) and tomorrow (${tomorrow}):`);
