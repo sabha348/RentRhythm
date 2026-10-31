@@ -11,6 +11,9 @@ export default function Home() {
       <p>
         <Link href="/vote">Vote for tomorrow&apos;s meals →</Link>
       </p>
+      <p>
+        <Link href="/cook">Kitchen: headcount and serving log →</Link>
+      </p>
     </main>
   );
 }
