@@ -85,7 +85,7 @@ GEMINI_MODEL=gemini-3.6-flash
 - Deploy on Render (later phase)
 
 ## Data model
-- **Property:** name, currency (USD), mealPriceVoted (3.00), mealPriceWalkIn (5.00), graceDays (2)
+- **Property:** name, currency (USD), mealPriceVoted (3.00), mealPriceWalkIn (5.00), graceDays (2), timezone (Asia/Kolkata), voteCutoff (21:00)
 - **Tenant:** name, email, room, monthlyRent, paydayDay (1–31), active
 - **MealVote:** tenantId, date, meal (lunch|dinner), going (bool)
 - **MealAttendance:** tenantId, date, meal, ate (bool)
@@ -106,7 +106,7 @@ Line items:
 - `sendMonthlyInvoice(tenantId, month)` is idempotent per tenant+month.
 
 ## Seed data (`npm run seed`, resets DB)
-Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 28th and rents $180–$260; one full previous month of meal votes/attendance: 2 reliable voters, 2 forgetful walk-ins, 1 votes-but-skips, 1 rarely eats in; AC charges for 4 tenants.
+Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 28th and rents $180–$260; meal votes/attendance from the start of the previous month (or `SEED_MONTH`) through yesterday in the property timezone: 2 reliable voters, 2 forgetful walk-ins, 1 votes-but-skips, 1 rarely eats in; today has votes only (cook logs attendance); reliable voters + votes-but-skips have voted for tomorrow; AC charges for 4 tenants each month. `DATABASE_PATH` overrides the DB file.
 
 ## Demo video script (anything not shown here doesn't get built)
 | Time | Scene |
@@ -130,8 +130,16 @@ Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 
 | Nov 10 | Record video |
 | Nov 11 | Submit |
 
-## Current phase: Build step 2 (meal voting + cook headcount, Oct 31–Nov 2) — not started
-Phase 0 and Build step 1 are complete (below, for reference). Plan step 2's tasks with the owner before starting.
+## Current phase: Build step 2 (meal voting + cook headcount, Oct 31–Nov 2)
+Decisions: tenants pick their name (no login); voting for tomorrow closes at 21:00 in the property's timezone (default `Asia/Kolkata`); cook's serving log pre-ticks voters (untick no-shows) and adds walk-ins.
+Work in this order, stopping after each to report:
+
+1. ✅ Property `timezone` + `voteCutoff`; `lib/meals.ts` (pure, tested): today/tomorrow in the property timezone, voting open/closed, tomorrow's headcount, today's serving list. DB helpers to cast votes and log attendance. Seed: history through yesterday, today's votes, some votes for tomorrow.
+2. `/vote` (name picker) → `/vote/[tenantId]`: tomorrow's Lunch ✅/❌ and Dinner ✅/❌, current vote, price incentive, closes-at / closed state. Mobile-first.
+3. `/cook`: tomorrow's headcount per meal (going + names, not voted); today's serving log per meal (voters pre-ticked, "+ Walk-in"). Logged walk-ins appear in `/owner` bill previews.
+4. End-to-end browser check with screenshots: vote → headcount changes → walk-in logged → bill preview gains the walk-in.
+
+Out of scope: logins, menus, voting more than one day ahead, notifications.
 
 ### Done: Phase 0 (fresh setup) and Build step 1 (foundation)
 

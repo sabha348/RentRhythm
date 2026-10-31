@@ -1,9 +1,16 @@
 // Resets the database and seeds "Sunrise Co-Living".
-// Usage: npm run seed            (meals for the previous full month)
+// Meal history runs from the start of SEED_MONTH (default: last month) through yesterday in the
+// property's timezone; today has votes only (the cook logs today), and some tenants have
+// already voted for tomorrow.
+// Usage: npm run seed
 //        SEED_MONTH=2026-10 npm run seed
 import { rmSync } from "node:fs";
 import { DB_PATH, getDb, schema } from "../lib/db";
-import type { Meal } from "../lib/db/schema";
+import { MEALS } from "../lib/db/schema";
+import { addDays, localDate } from "../lib/meals";
+
+const TIMEZONE = "Asia/Kolkata";
+const VOTE_CUTOFF = "21:00";
 
 type Habit = "reliable" | "walk-in" | "votes-but-skips" | "rarely-eats";
 
@@ -42,32 +49,43 @@ function mulberry32(seed: number) {
   };
 }
 
-function previousMonth(): string {
-  const now = new Date();
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-  return d.toISOString().slice(0, 7);
+function previousMonth(today: string): string {
+  const [y, m] = today.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7);
 }
 
-function datesInMonth(month: string): string[] {
-  const [y, m] = month.split("-").map(Number);
-  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  return Array.from({ length: days }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`);
+function datesBetween(from: string, to: string): string[] {
+  const dates: string[] = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) dates.push(d);
+  return dates;
 }
 
 function main() {
-  const month = process.env.SEED_MONTH ?? previousMonth();
+  const today = localDate(new Date(), TIMEZONE);
+  const tomorrow = addDays(today, 1);
+  const month = process.env.SEED_MONTH ?? previousMonth(today);
   if (!/^\d{4}-\d{2}$/.test(month)) throw new Error(`SEED_MONTH must be YYYY-MM, got ${month}`);
+  if (`${month}-01` > today) throw new Error(`SEED_MONTH ${month} is in the future`);
+  const history = datesBetween(`${month}-01`, addDays(today, -1));
+  const historyMonths = [...new Set(history.map((d) => d.slice(0, 7)))];
   const email = process.env.PAYPAL_BUYER_EMAIL;
   if (!email) throw new Error("Missing env var PAYPAL_BUYER_EMAIL (all seeded tenants use the sandbox buyer)");
 
   for (const suffix of ["", "-wal", "-shm"]) rmSync(DB_PATH + suffix, { force: true });
   const db = getDb();
   const rand = mulberry32(20261028);
-  const meals: Meal[] = ["lunch", "dinner"];
 
   db.transaction((tx) => {
     tx.insert(schema.properties)
-      .values({ name: "Sunrise Co-Living", currency: "USD", mealPriceVoted: 3, mealPriceWalkIn: 5, graceDays: 2 })
+      .values({
+        name: "Sunrise Co-Living",
+        currency: "USD",
+        mealPriceVoted: 3,
+        mealPriceWalkIn: 5,
+        graceDays: 2,
+        timezone: TIMEZONE,
+        voteCutoff: VOTE_CUTOFF,
+      })
       .run();
 
     for (const t of TENANTS) {
@@ -78,18 +96,29 @@ function main() {
         .get();
 
       const habit = HABITS[t.habit];
-      for (const date of datesInMonth(month)) {
-        for (const meal of meals) {
-          const voted = rand() < habit.vote;
-          const going = voted && rand() < habit.going;
-          if (voted) tx.insert(schema.mealVotes).values({ tenantId, date, meal, going }).run();
+      const vote = (date: string, meal: (typeof MEALS)[number]) => {
+        const voted = rand() < habit.vote;
+        const going = voted && rand() < habit.going;
+        if (voted) tx.insert(schema.mealVotes).values({ tenantId, date, meal, going }).run();
+        return going;
+      };
+
+      for (const date of history) {
+        for (const meal of MEALS) {
+          const going = vote(date, meal);
           const ate = rand() < (going ? habit.eatIfGoing : habit.eatOtherwise);
           tx.insert(schema.mealAttendance).values({ tenantId, date, meal, ate }).run();
         }
       }
+      // Today: votes were cast yesterday; the cook logs who actually ate.
+      // Tomorrow: voting is still open, so only some tenants have voted yet.
+      for (const meal of MEALS) vote(today, meal);
+      for (const meal of MEALS) if (t.habit === "reliable" || t.habit === "votes-but-skips") vote(tomorrow, meal);
 
       if (t.ac) {
-        tx.insert(schema.utilityCharges).values({ tenantId, month, label: "AC share", amount: t.ac }).run();
+        for (const m of historyMonths) {
+          tx.insert(schema.utilityCharges).values({ tenantId, month: m, label: "AC share", amount: t.ac }).run();
+        }
       }
     }
   });
@@ -102,13 +131,13 @@ function main() {
               SUM(v.going = 1 AND a.ate = 0)            AS voted_skipped,
               SUM((v.going IS NULL OR v.going = 0) AND a.ate = 1) AS walk_ins,
               SUM(v.id IS NOT NULL)                     AS votes_cast,
-              (SELECT COALESCE(SUM(amount), 0) FROM utility_charges u WHERE u.tenant_id = t.id) AS utilities
+              (SELECT COALESCE(SUM(amount), 0) FROM utility_charges u WHERE u.tenant_id = t.id AND u.month = ?) AS utilities
        FROM tenants t
-       JOIN meal_attendance a ON a.tenant_id = t.id
+       JOIN meal_attendance a ON a.tenant_id = t.id AND a.date LIKE ?
        LEFT JOIN meal_votes v ON v.tenant_id = a.tenant_id AND v.date = a.date AND v.meal = a.meal
        GROUP BY t.id ORDER BY t.id`,
     )
-    .all();
+    .all(month, `${month}-%`);
   const counts = Object.fromEntries(
     ["properties", "tenants", "meal_votes", "meal_attendance", "utility_charges", "invoices"].map((table) => [
       table,
@@ -116,9 +145,17 @@ function main() {
     ]),
   );
 
-  console.log(`Seeded ${DB_PATH} with meals for ${month}\n`);
+  const votesOn = (date: string) =>
+    db.$client
+      .prepare("SELECT meal, SUM(going) AS going, COUNT(*) AS voted FROM meal_votes WHERE date = ? GROUP BY meal")
+      .all(date);
+
+  console.log(`Seeded ${DB_PATH}: history ${history[0]} → ${history.at(-1)} (${TIMEZONE}), today ${today}\n`);
   console.table(counts);
+  console.log(`Billing summary for ${month}:`);
   console.table(rows);
+  console.log(`Votes for today (${today}) and tomorrow (${tomorrow}):`);
+  console.table([...votesOn(today).map((r) => ({ day: "today", ...(r as object) })), ...votesOn(tomorrow).map((r) => ({ day: "tomorrow", ...(r as object) }))]);
 }
 
 main();

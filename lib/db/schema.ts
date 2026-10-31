@@ -11,6 +11,8 @@ export const properties = sqliteTable("properties", {
   mealPriceVoted: real("meal_price_voted").notNull().default(3),
   mealPriceWalkIn: real("meal_price_walk_in").notNull().default(5),
   graceDays: integer("grace_days").notNull().default(2),
+  timezone: text("timezone").notNull().default("Asia/Kolkata"), // IANA zone for "today"/"tomorrow"
+  voteCutoff: text("vote_cutoff").notNull().default("21:00"), // HH:MM local; votes for tomorrow close then
 });
 
 export const tenants = sqliteTable("tenants", {
