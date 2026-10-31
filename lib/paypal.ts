@@ -151,10 +151,9 @@ export function buildInvoicePayload(input: CreateInvoiceInput) {
       note: input.note,
       payment_term: { term_type: "DUE_ON_DATE_SPECIFIED", due_date: input.dueDate },
     },
-    invoicer: {
-      email_address: requireEnv("PAYPAL_BUSINESS_EMAIL"),
-      ...(input.businessName ? { business_name: input.businessName } : {}),
-    },
+    // No invoicer email: PayPal invoices as the account that owns the API credentials. Sending an
+    // email that doesn't match that account fails with USER_NOT_FOUND.
+    ...(input.businessName ? { invoicer: { business_name: input.businessName } } : {}),
     primary_recipients: [
       {
         billing_info: {

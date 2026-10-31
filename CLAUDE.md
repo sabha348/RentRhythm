@@ -53,6 +53,7 @@ The approach was proven with throwaway scripts that no longer exist. The repo st
 - The sandbox has one buyer account, so all seeded tenants use `PAYPAL_BUYER_EMAIL`.
 - Paying invoices is done by the human in a browser (sandbox buyer login); code can't do it.
 - **Sending to an India-registered sandbox buyer fails** with `INR_FOREIGN_CURRENCY_BLOCKED` (406), even with a US billing address on the invoice. `PAYPAL_BUYER_EMAIL` must be a sandbox **personal** account created with country = United States.
+- **Don't set `invoicer.email_address`.** If it doesn't match the account that owns the API credentials, send fails with `USER_NOT_FOUND` (422). Omitted, PayPal invoices as the credentials' account. `PAYPAL_BUSINESS_EMAIL` is therefore informational only.
 - In the Claude Code cloud container, Node's built-in `fetch` ignores `HTTPS_PROXY`; run scripts with `NODE_USE_ENV_PROXY=1` there. Not needed locally or on Render.
 
 ## Rules
@@ -140,7 +141,7 @@ The repo is empty apart from this file. Work in this order, stopping after each 
 Then Build step 1:
 1. ✅ Schema + seed; run the seed.
 2. ✅ `lib/billing.ts` + tests (walk-ins, voted-but-absent, zero meals, payday clamping, rounding); run tests.
-3. `sendMonthlyInvoice`: send ONE tenant's real sandbox invoice; show the line items PayPal returned.
+3. ✅ `sendMonthlyInvoice`: send ONE tenant's real sandbox invoice; show the line items PayPal returned.
 4. `/owner` page: tenant table (payday, due date, bill status for selected month) with "Preview bill" and "Send via PayPal" buttons. Function over looks.
 
 Update the "Current phase" section of this file as phases complete.
