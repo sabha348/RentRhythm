@@ -1,6 +1,6 @@
 // Run the owner collections agent from the command line.
 // Usage: npm run agent -- "List my unpaid invoices"
-import { runAgent } from "../lib/agent";
+import { runAgent, summarizeStep } from "../lib/agent";
 
 async function main() {
   const request = process.argv.slice(2).join(" ").trim();
@@ -11,10 +11,11 @@ async function main() {
   console.log(`> ${request}\n`);
 
   const result = await runAgent(request, {
-    onToolCall: ({ tool, input, output, ms }) => {
-      const preview = JSON.stringify(output);
-      console.log(`[tool] ${tool} ${JSON.stringify(input)} (${ms} ms)`);
+    onToolCall: (call) => {
+      const preview = JSON.stringify(call.output);
+      console.log(`[tool] ${call.tool} ${JSON.stringify(call.input)} (${call.ms} ms)`);
       console.log(`       -> ${preview.length > 300 ? `${preview.slice(0, 300)}…` : preview}`);
+      console.log(`       = ${summarizeStep(call).summary}`);
     },
   });
 

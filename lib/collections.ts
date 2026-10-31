@@ -79,7 +79,26 @@ export type TenantCollections = {
   repeatLatePayer: boolean;
   /** Remind = unpaid and the tenant's payday has passed, so they should have the money. */
   suggestedAction: "remind" | "wait" | "none";
+  /** Plain-language status for the agent and UI, so nobody has to re-derive it from the fields. */
+  reason: string;
+  lateSummary: string; // e.g. "late 2 of the last 3 months"
 };
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+function reasonFor(current: TenantCollections["current"]): string {
+  if (!current) return "No bill has been sent yet.";
+  const bill = `$${current.total.toFixed(2)} bill for ${current.month} (${current.invoiceNumber})`;
+  if (!current.unpaid) return `Nothing owed: the latest bill (${current.month}) is ${current.status}.`;
+  if (!current.paydayPassed) return `Unpaid ${bill}, due ${current.dueDate}. Payday ${current.payday} hasn't come yet, so wait.`;
+  const when =
+    current.dueInDays < 0
+      ? `overdue by ${plural(-current.dueInDays, "day")}`
+      : current.dueInDays === 0
+        ? "due today"
+        : `due in ${plural(current.dueInDays, "day")} (${current.dueDate})`;
+  return `Unpaid ${bill}; payday ${current.payday} has passed; ${when}.`;
+}
 
 export function tenantCollections(tenant: TenantForCollections, today: string): TenantCollections {
   const sent = tenant.invoices
@@ -115,6 +134,11 @@ export function tenantCollections(tenant: TenantForCollections, today: string): 
     }));
   const lateCount = history.filter((h) => h.outcome === "late" || h.outcome === "overdue").length;
 
+  const suggestedAction: TenantCollections["suggestedAction"] = !current?.unpaid
+    ? "none"
+    : current.paydayPassed
+      ? "remind"
+      : "wait";
   return {
     tenantId: tenant.id,
     name: tenant.name,
@@ -124,7 +148,9 @@ export function tenantCollections(tenant: TenantForCollections, today: string): 
     history,
     lateCount,
     repeatLatePayer: lateCount >= REPEAT_LATE_THRESHOLD,
-    suggestedAction: !current?.unpaid ? "none" : current.paydayPassed ? "remind" : "wait",
+    suggestedAction,
+    reason: reasonFor(current),
+    lateSummary: history.length ? `late ${lateCount} of the last ${plural(history.length, "month")}` : "no payment history yet",
   };
 }
 

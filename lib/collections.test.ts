@@ -64,6 +64,8 @@ describe("tenantCollections", () => {
     expect(c.lateCount).toBe(3);
     expect(c.repeatLatePayer).toBe(true);
     expect(c.suggestedAction).toBe("remind");
+    expect(c.reason).toBe("Unpaid $300.00 bill for 2026-10 (RR-2026-10); payday 2026-11-07 has passed; overdue by 1 day.");
+    expect(c.lateSummary).toBe("late 3 of the last 3 months");
   });
 
   it("waits for a tenant whose payday hasn't come yet (Lucas, 15th)", () => {
@@ -74,6 +76,8 @@ describe("tenantCollections", () => {
     expect(c.current).toMatchObject({ payday: "2026-11-15", paydayPassed: false, dueInDays: 7 });
     expect(c.history).toEqual([]); // the open invoice isn't decided yet
     expect(c.suggestedAction).toBe("wait");
+    expect(c.reason).toBe("Unpaid $300.00 bill for 2026-10 (RR-2026-10), due 2026-11-17. Payday 2026-11-15 hasn't come yet, so wait.");
+    expect(c.lateSummary).toBe("no payment history yet");
   });
 
   it("reminds on payday itself, before the due date", () => {
@@ -83,6 +87,7 @@ describe("tenantCollections", () => {
     );
     expect(c.current).toMatchObject({ paydayPassed: true, dueInDays: 2 });
     expect(c.suggestedAction).toBe("remind");
+    expect(c.reason).toContain("payday 2026-11-10 has passed; due in 2 days (2026-11-12)");
   });
 
   it("needs nothing from a tenant who paid; one late month is not a pattern", () => {
@@ -101,6 +106,7 @@ describe("tenantCollections", () => {
       TODAY,
     );
     expect(c.suggestedAction).toBe("none");
+    expect(c.reason).toBe("Nothing owed: the latest bill (2026-10) is PAID.");
     expect(c.lateCount).toBe(1);
     expect(c.repeatLatePayer).toBe(false);
   });
@@ -132,6 +138,7 @@ describe("tenantCollections", () => {
   it("handles a tenant with no invoices", () => {
     const c = tenantCollections({ id: 6, name: "Emma", room: "203", paydayDay: 28, invoices: [] }, TODAY);
     expect(c).toMatchObject({ current: null, history: [], lateCount: 0, repeatLatePayer: false, suggestedAction: "none" });
+    expect(c.reason).toBe("No bill has been sent yet.");
   });
 });
 
