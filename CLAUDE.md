@@ -135,7 +135,7 @@ Decisions: tenants pick their name (no login); voting for tomorrow closes at 21:
 Work in this order, stopping after each to report:
 
 1. ✅ Property `timezone` + `voteCutoff`; `lib/meals.ts` (pure, tested): today/tomorrow in the property timezone, voting open/closed, tomorrow's headcount, today's serving list. DB helpers to cast votes and log attendance. Seed: history through yesterday, today's votes, some votes for tomorrow.
-2. `/vote` (name picker) → `/vote/[tenantId]`: tomorrow's Lunch ✅/❌ and Dinner ✅/❌, current vote, price incentive, closes-at / closed state. Mobile-first.
+2. ✅ `/vote` (name picker) → `/vote/[tenantId]`: tomorrow's Lunch ✅/❌ and Dinner ✅/❌, current vote, price incentive, closes-at / closed state. Mobile-first.
 3. `/cook`: tomorrow's headcount per meal (going + names, not voted); today's serving log per meal (voters pre-ticked, "+ Walk-in"). Logged walk-ins appear in `/owner` bill previews.
 4. End-to-end browser check with screenshots: vote → headcount changes → walk-in logged → bill preview gains the walk-in.
 

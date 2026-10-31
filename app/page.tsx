@@ -8,6 +8,9 @@ export default function Home() {
       <p>
         <Link href="/owner">Owner dashboard →</Link>
       </p>
+      <p>
+        <Link href="/vote">Vote for tomorrow&apos;s meals →</Link>
+      </p>
     </main>
   );
 }
