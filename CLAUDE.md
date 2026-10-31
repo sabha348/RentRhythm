@@ -59,7 +59,7 @@ The approach was proven with throwaway scripts that no longer exist. The repo st
 ## Rules
 - **PayPal SANDBOX only** (`https://api-m.sandbox.paypal.com`).
 - Never commit or print secrets. Read from env vars. Keep `.env` and `output/` gitignored; maintain `.env.example`.
-- Agent may use only invoice tools: list, get, send reminder, generate QR (later: create/send invoice via our own code). **Never enable money-moving tools** (payouts, refunds, captures).
+- Agent may use only invoice tools: list, get, send reminder, generate QR, plus **read-only** tools over our own DB (e.g. `get_collections_overview`). **Never enable money-moving tools** (payouts, refunds, captures).
 - Pin dependency versions exactly.
 - Build only what the demo video shows (see below). Keep scope tight.
 - Commit after each working step with clear messages.
@@ -72,6 +72,7 @@ PAYPAL_BUSINESS_EMAIL
 PAYPAL_BUYER_EMAIL
 GOOGLE_GENERATIVE_AI_API_KEY
 GEMINI_MODEL=gemini-3.6-flash
+DEMO_TODAY=            # optional YYYY-MM-DD: pins "today" for collections/agent rehearsals
 ```
 
 ## Tech stack
@@ -90,7 +91,7 @@ GEMINI_MODEL=gemini-3.6-flash
 - **MealVote:** tenantId, date, meal (lunch|dinner), going (bool)
 - **MealAttendance:** tenantId, date, meal, ate (bool)
 - **UtilityCharge:** tenantId, month (YYYY-MM), label, amount
-- **Invoice:** tenantId, month, paypalInvoiceId, invoiceNumber, status, total, dueDate, paidAt (for late-payer flags), createdAt; unique on (tenantId, month)
+- **Invoice:** tenantId, month, paypalInvoiceId, invoiceNumber, status, total, dueDate, paidAt (for late-payer flags), source (`paypal` = real sandbox invoice, `seed` = demo payment history), createdAt; unique on (tenantId, month)
 
 ## Billing rules (`lib/billing.ts`, pure functions, unit-tested)
 Line items:
@@ -106,7 +107,7 @@ Line items:
 - `sendMonthlyInvoice(tenantId, month)` is idempotent per tenant+month.
 
 ## Seed data (`npm run seed`, resets DB)
-Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 28th and rents $180–$260; meal votes/attendance from the start of the previous month (or `SEED_MONTH`) through yesterday in the property timezone: 2 reliable voters, 2 forgetful walk-ins, 1 votes-but-skips, 1 rarely eats in; today has votes only (cook logs attendance); reliable voters + votes-but-skips have voted for tomorrow; AC charges for 4 tenants each month. Existing invoice records are kept across reseeds (matched by tenant name; they mirror real sandbox invoices); `SEED_RESET_INVOICES=1` drops them. `DATABASE_PATH` overrides the DB file.
+Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 28th and rents $180–$260; meal votes/attendance from the start of 3 months ago (or `SEED_MONTH`) through yesterday in the property timezone: 2 reliable voters, 2 forgetful walk-ins, 1 votes-but-skips, 1 rarely eats in; today has votes only (cook logs attendance); reliable voters + votes-but-skips have voted for tomorrow; AC charges for 4 tenants each month. Paid invoice history (`source = 'seed'`) for the 2 months before last month: Daniel paid 5–6 days late both times, Lucas late once, everyone else on time. Real invoice records (`source = 'paypal'`) are kept across reseeds (matched by tenant name); `SEED_RESET_INVOICES=1` drops them. `DATABASE_PATH` overrides the DB file.
 
 ## Demo video script (anything not shown here doesn't get built)
 | Time | Scene |
@@ -130,8 +131,14 @@ Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 
 | Nov 10 | Record video |
 | Nov 11 | Submit |
 
-## Current phase: Build step 3 (owner agent chat + `INVOICING.INVOICE.PAID` webhook, Nov 3–5) — not started
-Phase 0 and Build steps 1–2 are complete (below, for reference). Plan step 3's tasks with the owner before starting.
+## Current phase: Build step 3 (owner agent chat + `INVOICING.INVOICE.PAID` webhook, Nov 3–5)
+Decisions: webhook reaches the app via an early basic Render deploy (accept SQLite resets on the free tier for now; reseed on start); agent gets one extra read-only tool over our DB; past invoice history is seeded and marked `source = 'seed'` (no PayPal invoice behind it), with Daniel the repeat late payer; chat is request/response showing each tool step.
+Work in this order, stopping after each to report:
+
+1. ✅ `lib/collections.ts` (pure, tested): per tenant, the current invoice's payday (passed?), due date, status, days overdue; late history (paid after due date, or unpaid past it); repeat late payer = late in ≥2 of the last 3 decided months. Invoice `source` column; seed 2 past months of paid history (Daniel late both times). Agent "today" in property timezone; `DEMO_TODAY=YYYY-MM-DD` overrides it for rehearsals.
+2. `/owner/agent` chat: read-only `get_collections_overview` tool + the 4 PayPal tools; reminders only for unpaid invoices in our DB; suggested prompt; shows each tool step; friendly 429/503. Test the demo prompt against the sandbox.
+3. `app/api/paypal/webhook`: verify signature (`PAYPAL_WEBHOOK_ID`), `INVOICING.INVOICE.PAID` → status + `paidAt`, idempotent; `scripts/register-webhook.ts`; `/owner` auto-refresh + "Sync from PayPal" fallback. Tests with sample payloads.
+4. Basic Render deploy + live test: owner pays an invoice as the sandbox buyer; `/owner` turns PAID live.
 
 ### Done: Build step 2 (meal voting + cook headcount)
 Decisions: tenants pick their name (no login); voting for tomorrow closes at 21:00 in the property's timezone (default `Asia/Kolkata`); cook's serving log pre-ticks voters (untick no-shows) and adds walk-ins.

@@ -44,14 +44,22 @@ export function nextMonth(month: string): string {
 }
 
 /**
- * A bill for `month` is sent when that month ends, so it is due on the tenant's payday in the
- * FOLLOWING month plus grace days. Paydays past the month's end (e.g. 31 in February) clamp to
- * its last day.
+ * The tenant's payday in the month after `month` (when that month's bill falls due). Paydays past
+ * the month's end (e.g. 31 in February) clamp to its last day.
  */
-export function dueDateFor(month: string, paydayDay: number, graceDays: number): string {
+export function paydayFor(month: string, paydayDay: number): string {
   const [y, m] = nextMonth(month).split("-").map(Number);
   const payday = Math.min(Math.max(1, paydayDay), daysInMonth(y, m));
-  return new Date(Date.UTC(y, m - 1, payday + graceDays)).toISOString().slice(0, 10);
+  return new Date(Date.UTC(y, m - 1, payday)).toISOString().slice(0, 10);
+}
+
+/**
+ * A bill for `month` is sent when that month ends, so it is due on the tenant's payday in the
+ * FOLLOWING month plus grace days.
+ */
+export function dueDateFor(month: string, paydayDay: number, graceDays: number): string {
+  const [y, m, d] = paydayFor(month, paydayDay).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + graceDays)).toISOString().slice(0, 10);
 }
 
 // PayPal computes each line as quantity × the 2-decimal unit price, so do the same.

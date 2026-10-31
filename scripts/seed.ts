@@ -1,19 +1,34 @@
 // Resets the database and seeds "Sunrise Co-Living".
-// Meal history runs from the start of SEED_MONTH (default: last month) through yesterday in the
+// Meal history runs from the start of SEED_MONTH (default: 3 months ago) through yesterday in the
 // property's timezone; today has votes only (the cook logs today), and some tenants have
-// already voted for tomorrow.
+// already voted for tomorrow. The 2 months before last month get paid invoice history
+// (source "seed", no PayPal invoice behind it): Daniel paid late both times.
 // Usage: npm run seed
 //        SEED_MONTH=2026-10 npm run seed
-// Existing invoice records are kept (they mirror real PayPal sandbox invoices); set
-// SEED_RESET_INVOICES=1 to drop them too.
+// Existing real invoice records (source "paypal") are kept, since they mirror PayPal sandbox
+// invoices; set SEED_RESET_INVOICES=1 to drop them too.
 import { existsSync, rmSync } from "node:fs";
 import Database from "better-sqlite3";
 import { DB_PATH, getDb, schema } from "../lib/db";
+import { dueDateFor, nextMonth } from "../lib/billing";
 import { MEALS } from "../lib/db/schema";
+import { previewMonthlyBill } from "../lib/invoicing";
 import { addDays, localDate } from "../lib/meals";
 
 const TIMEZONE = "Asia/Kolkata";
 const VOTE_CUTOFF = "21:00";
+const GRACE_DAYS = 2;
+
+// When each tenant paid seeded history invoices, in days after the due date (<= 0 is on time),
+// oldest month first. Daniel is the repeat late payer; Lucas was late once (not a pattern).
+const PAYMENT_HISTORY: Record<string, [number, number]> = {
+  "Aarav Mehta": [-1, -2],
+  "Sofia Rossi": [-2, -1],
+  "Daniel Kim": [5, 6],
+  "Priya Nair": [0, -1],
+  "Lucas Martin": [3, -1],
+  "Emma Okafor": [-2, -2],
+};
 
 type Habit = "reliable" | "walk-in" | "votes-but-skips" | "rarely-eats";
 
@@ -52,9 +67,9 @@ function mulberry32(seed: number) {
   };
 }
 
-function previousMonth(today: string): string {
+function monthsBefore(today: string, n: number): string {
   const [y, m] = today.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7);
+  return new Date(Date.UTC(y, m - 1 - n, 1)).toISOString().slice(0, 7);
 }
 
 function datesBetween(from: string, to: string): string[] {
@@ -74,8 +89,9 @@ function saveInvoices(): SavedInvoice[] {
       .prepare(
         `SELECT t.name AS tenantName, i.month, i.paypal_invoice_id AS paypalInvoiceId,
                 i.invoice_number AS invoiceNumber, i.status, i.total, i.due_date AS dueDate,
-                i.paid_at AS paidAt, i.created_at AS createdAt
-         FROM invoices i JOIN tenants t ON t.id = i.tenant_id`,
+                i.paid_at AS paidAt, i.created_at AS createdAt, 'paypal' AS source
+         FROM invoices i JOIN tenants t ON t.id = i.tenant_id
+         ${hasSourceColumn(old) ? "WHERE i.source = 'paypal'" : ""}`,
       )
       .all() as SavedInvoice[];
   } catch {
@@ -85,10 +101,16 @@ function saveInvoices(): SavedInvoice[] {
   }
 }
 
+function hasSourceColumn(db: Database.Database): boolean {
+  return (db.prepare("PRAGMA table_info(invoices)").all() as { name: string }[]).some((c) => c.name === "source");
+}
+
 function main() {
   const today = localDate(new Date(), TIMEZONE);
   const tomorrow = addDays(today, 1);
-  const month = process.env.SEED_MONTH ?? previousMonth(today);
+  // Seeded payment history covers the 2 months before last month (last month is the live one).
+  const paidHistoryMonths = [monthsBefore(today, 3), monthsBefore(today, 2)];
+  const month = process.env.SEED_MONTH ?? paidHistoryMonths[0];
   if (!/^\d{4}-\d{2}$/.test(month)) throw new Error(`SEED_MONTH must be YYYY-MM, got ${month}`);
   if (`${month}-01` > today) throw new Error(`SEED_MONTH ${month} is in the future`);
   const history = datesBetween(`${month}-01`, addDays(today, -1));
@@ -108,7 +130,7 @@ function main() {
         currency: "USD",
         mealPriceVoted: 3,
         mealPriceWalkIn: 5,
-        graceDays: 2,
+        graceDays: GRACE_DAYS,
         timezone: TIMEZONE,
         voteCutoff: VOTE_CUTOFF,
       })
@@ -142,7 +164,7 @@ function main() {
       for (const meal of MEALS) if (t.habit === "reliable" || t.habit === "votes-but-skips") vote(tomorrow, meal);
 
       if (t.ac) {
-        for (const m of historyMonths) {
+        for (const m of new Set([...historyMonths, ...paidHistoryMonths])) {
           tx.insert(schema.utilityCharges).values({ tenantId, month: m, label: "AC share", amount: t.ac }).run();
         }
       }
@@ -155,6 +177,29 @@ function main() {
       else console.warn(`Dropping invoice ${invoice.invoiceNumber}: tenant ${tenantName} no longer seeded`);
     }
   });
+
+  // Paid invoice history (after the transaction, so bills are computed from the seeded meals).
+  let seededInvoices = 0;
+  for (const t of db.select().from(schema.tenants).all()) {
+    paidHistoryMonths.forEach((m, i) => {
+      if (savedInvoices.some((inv) => inv.tenantName === t.name && inv.month === m)) return; // real one kept
+      const dueDate = dueDateFor(m, t.paydayDay, GRACE_DAYS);
+      db.insert(schema.invoices)
+        .values({
+          tenantId: t.id,
+          month: m,
+          invoiceNumber: `SEED-${m.replace("-", "")}-T${t.id}`,
+          status: "PAID",
+          total: previewMonthlyBill(t.id, m, db).bill.total,
+          dueDate,
+          paidAt: `${addDays(dueDate, PAYMENT_HISTORY[t.name]?.[i] ?? 0)} 10:00:00`,
+          source: "seed",
+          createdAt: `${nextMonth(m)}-01 00:00:00`,
+        })
+        .run();
+      seededInvoices++;
+    });
+  }
 
   // Summary so the seeded behaviour can be eyeballed.
   const rows = db.$client
@@ -185,7 +230,8 @@ function main() {
 
   console.log(`Seeded ${DB_PATH}: history ${history[0]} → ${history.at(-1)} (${TIMEZONE}), today ${today}\n`);
   console.table(counts);
-  if (savedInvoices.length) console.log(`Kept ${savedInvoices.length} existing invoice records (SEED_RESET_INVOICES=1 drops them).\n`);
+  if (savedInvoices.length) console.log(`Kept ${savedInvoices.length} real invoice records (SEED_RESET_INVOICES=1 drops them).`);
+  console.log(`Seeded ${seededInvoices} paid history invoices for ${paidHistoryMonths.join(", ")}.\n`);
   console.log(`Billing summary for ${month}:`);
   console.table(rows);
   console.log(`Votes for today (${today}) and tomorrow (${tomorrow}):`);

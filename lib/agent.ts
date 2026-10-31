@@ -3,6 +3,8 @@ import { google } from "@ai-sdk/google";
 import { PayPalAgentToolkit } from "@paypal/agent-toolkit/ai-sdk";
 import { APICallError, generateText, RetryError, stepCountIs, tool, type ToolSet } from "ai";
 import { z } from "zod";
+import { collectionsToday } from "./clock";
+import { getDb, schema } from "./db";
 import { PAYPAL_API_BASE, saveInvoiceQr } from "./paypal";
 
 // The ONLY toolkit actions the agent gets. Never add money-moving tools (payouts, refunds, captures).
@@ -88,7 +90,7 @@ export function buildPayPalTools(onToolCall?: (call: ToolCallLog) => void): Tool
   return tools;
 }
 
-export function systemPrompt(today = new Date().toISOString().slice(0, 10)) {
+export function systemPrompt(today: string) {
   return `You are RentRhythm's collections assistant for the owner of a co-living property.
 Today is ${today}. You work against PayPal SANDBOX invoices.
 
@@ -99,6 +101,12 @@ Rules:
 - When you send a reminder, keep the note short, friendly and polite.
 - A QR tool result is a file path; mention the path, never try to show image data.
 - Answer concisely: a short summary, then one line per invoice (number, recipient, amount, due date, status, what you did).`;
+}
+
+// The owner's "today" (property timezone, or DEMO_TODAY), not the server's UTC date.
+function agentToday(): string {
+  const property = getDb().select().from(schema.properties).get();
+  return collectionsToday(property?.timezone ?? "UTC");
 }
 
 function geminiModel() {
@@ -119,7 +127,7 @@ export async function runAgent(request: string, opts: { onToolCall?: (call: Tool
   try {
     const result = await generateText({
       model: geminiModel(),
-      system: systemPrompt(),
+      system: systemPrompt(agentToday()),
       prompt: request,
       tools: buildPayPalTools(opts.onToolCall),
       stopWhen: stepCountIs(10),

@@ -1,0 +1,1 @@
+ALTER TABLE `invoices` ADD `source` text DEFAULT 'paypal' NOT NULL;

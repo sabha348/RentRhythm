@@ -72,6 +72,8 @@ export const invoices = sqliteTable(
     total: real("total").notNull(),
     dueDate: text("due_date").notNull(),
     paidAt: text("paid_at"), // set from the PAID webhook; used to flag repeat late payers
+    // "paypal" = a real sandbox invoice; "seed" = demo payment history with no PayPal invoice behind it
+    source: text("source", { enum: ["paypal", "seed"] }).notNull().default("paypal"),
     createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
   (t) => [unique().on(t.tenantId, t.month)],

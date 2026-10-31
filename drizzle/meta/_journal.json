@@ -15,6 +15,13 @@
       "when": 1793427922560,
       "tag": "0001_property_meal_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793436147283,
+      "tag": "0002_invoice_source",
+      "breakpoints": true
     }
   ]
 }
