@@ -99,7 +99,8 @@ Line items:
 4. Each utility charge for the month
 
 - **Voted but didn't eat → charged at voted price** (food was cooked for them). Easy-to-change rule; keep a comment.
-- dueDate = payday in billing month + graceDays; clamp payday to the month's last day.
+- dueDate = payday in the month AFTER the billed month + graceDays (the bill is sent when the billed month ends); clamp payday to that month's last day.
+- Line amount = quantity × unit price rounded to cents (matches PayPal's own math).
 - Totals rounded to 2 decimals.
 - `sendMonthlyInvoice(tenantId, month)` is idempotent per tenant+month.
 
@@ -138,7 +139,7 @@ The repo is empty apart from this file. Work in this order, stopping after each 
 
 Then Build step 1:
 1. ✅ Schema + seed; run the seed.
-2. `lib/billing.ts` + tests (walk-ins, voted-but-absent, zero meals, payday clamping, rounding); run tests.
+2. ✅ `lib/billing.ts` + tests (walk-ins, voted-but-absent, zero meals, payday clamping, rounding); run tests.
 3. `sendMonthlyInvoice`: send ONE tenant's real sandbox invoice; show the line items PayPal returned.
 4. `/owner` page: tenant table (payday, due date, bill status for selected month) with "Preview bill" and "Send via PayPal" buttons. Function over looks.
 
