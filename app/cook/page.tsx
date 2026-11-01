@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getDb, schema } from "@/lib/db";
 import { MEALS } from "@/lib/db/schema";
 import { dayLabel, timeLabel } from "@/lib/format";
@@ -6,6 +5,8 @@ import { headcount, servingList } from "@/lib/meals";
 import { getVotingWindow, loadDay } from "@/lib/meals-db";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ServingLog } from "./serving-log";
+
+export const metadata = { title: "Kitchen" };
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +24,10 @@ export default function CookPage() {
   return (
     <main style={{ maxWidth: 720, margin: "0 auto" }}>
       <AutoRefresh seconds={10} />
-      <p style={{ margin: 0 }}>
-        <Link href="/">RentRhythm</Link> · {property.name}
+      <h1>Kitchen</h1>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {property.name} · tomorrow&apos;s headcount from tenants&apos; votes, and today&apos;s serving log.
       </p>
-      <h1 style={{ marginTop: 4 }}>Kitchen</h1>
 
       <h2 style={{ marginBottom: 4 }}>Tomorrow: {dayLabel(window.tomorrow)}</h2>
       <p style={{ marginTop: 0, color: window.open ? "#b45309" : "#15803d" }}>
@@ -38,7 +39,7 @@ export default function CookPage() {
         {MEALS.map((meal) => {
           const c = counts[meal];
           return (
-            <section key={meal} style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12 }}>
+            <section key={meal} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 12, background: "var(--surface)" }}>
               <h3 style={{ margin: 0 }}>{LABELS[meal]}</h3>
               <p style={{ fontSize: 44, fontWeight: 700, margin: "4px 0" }} data-testid={`headcount-${meal}`}>
                 {c.going.length}

@@ -147,7 +147,7 @@ Decisions: desk QR is a dedicated full-screen page; plain CSS (no new UI deps); 
 Work in this order, stopping after each to report:
 
 1. ✅ Desk QR (scene 2:15): "Show pay QR" on `/owner` for sent unpaid invoices → full-screen `/desk/[invoiceNumber]` (tenant, amount, big PayPal QR via an image route that proxies PayPal's QR; no file on disk); auto-refresh turns it into "✓ Paid" when the webhook lands. Verify the QR decodes to the payer link.
-2. UI polish: shared header nav, consistent styles and status badges, page titles, loading/empty/error states, landing page for judges (problem, pages, "start here", cold-start note); desktop + phone screenshots of every page.
+2. ✅ UI polish: shared header nav, consistent styles and status badges, page titles, loading/empty/error states, landing page for judges (problem, pages, "start here", cold-start note); desktop + phone screenshots of every page.
 3. README (features, architecture diagram, AI tools/models and how they're used, setup + sandbox gotchas, limitations) and `docs/demo-runbook.md` (recording-day choreography, exact prompts, resets).
 4. Release: PR to `main`, Render on `main`, final check via Render logs, one live agent-chat run when quota allows.
 

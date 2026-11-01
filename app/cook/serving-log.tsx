@@ -26,7 +26,7 @@ export function ServingLog({ date, meal, label, list }: { date: string; meal: st
   const unconfirmed = voters.filter((v) => !v.logged);
 
   return (
-    <section style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12, opacity: pending ? 0.7 : 1 }}>
+    <section style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 12, background: "var(--surface)", opacity: pending ? 0.7 : 1 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <h3 style={{ margin: 0 }}>{label}</h3>
         <span>

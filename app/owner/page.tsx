@@ -1,10 +1,11 @@
-import Link from "next/link";
 import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { monthLabel, previewMonthlyBill } from "@/lib/invoicing";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { OwnerTable, type OwnerRow } from "./owner-table";
 import { SyncButton } from "./sync-button";
+
+export const metadata = { title: "Monthly bills" };
 
 export const dynamic = "force-dynamic";
 
@@ -57,12 +58,13 @@ export default async function OwnerPage({ searchParams }: { searchParams: Promis
 
   return (
     <main>
-      <p>
-        <Link href="/">RentRhythm</Link> · <Link href="/owner/calendar">Due-date calendar →</Link> ·{" "}
-        <Link href="/owner/agent">Collections assistant →</Link>
+      <h1>Monthly bills</h1>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {property.name} · one PayPal invoice per tenant: rent + meals + walk-ins + utilities. Each bill is due on the
+        tenant&apos;s payday the following month + {property.graceDays} grace days. Meals: $
+        {property.mealPriceVoted.toFixed(2)} voted, ${property.mealPriceWalkIn.toFixed(2)} walk-in.
       </p>
-      <h1>{property.name}: owner</h1>
-      <form method="get" style={{ marginBottom: 16 }}>
+      <form method="get" style={{ margin: "12px 0" }}>
         <label>
           Billing month{" "}
           <select name="month" defaultValue={month}>
@@ -75,10 +77,6 @@ export default async function OwnerPage({ searchParams }: { searchParams: Promis
         </label>{" "}
         <button type="submit">Show</button>
       </form>
-      <p style={{ color: "#555" }}>
-        Meals: ${property.mealPriceVoted.toFixed(2)} voted · ${property.mealPriceWalkIn.toFixed(2)} walk-in. Each bill is
-        due on the tenant&apos;s payday the following month + {property.graceDays} grace days.
-      </p>
       {/* Picks up PAID from the PayPal webhook without a reload. */}
       <AutoRefresh seconds={5} />
       <OwnerTable month={month} currency={property.currency} rows={rows} />

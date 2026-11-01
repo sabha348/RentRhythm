@@ -6,6 +6,8 @@ import { dayLabel, money, timeLabel } from "@/lib/format";
 import { getVotingWindow, tenantVotes } from "@/lib/meals-db";
 import { VoteForm } from "./vote-form";
 
+export const metadata = { title: "Meal vote" };
+
 export const dynamic = "force-dynamic";
 
 export default async function TenantVotePage({ params }: { params: Promise<{ tenantId: string }> }) {

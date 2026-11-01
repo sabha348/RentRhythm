@@ -1,8 +1,9 @@
-import Link from "next/link";
 import { loadCalendar } from "@/lib/calendar-db";
 import { STATE_COLORS } from "@/lib/calendar";
 import { AutoRefresh } from "@/components/auto-refresh";
 import OwnerCalendar from "./owner-calendar";
+
+export const metadata = { title: "Due-date calendar" };
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +17,9 @@ const LEGEND: [keyof typeof STATE_COLORS, string, string][] = [
 export default function CalendarPage() {
   const { today, resources, events } = loadCalendar();
   return (
-    <main style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 32px)" }}>
+    <main style={{ display: "flex", flexDirection: "column", height: "calc(100vh - var(--header-h))", maxWidth: 1400 }}>
       {/* Payments from the PayPal webhook show up without a reload. */}
       <AutoRefresh seconds={5} />
-      <p style={{ margin: "0 0 8px" }}>
-        <Link href="/owner">← Owner dashboard</Link> · <Link href="/owner/agent">Collections assistant</Link>
-      </p>
       <h1 style={{ margin: "0 0 4px" }}>Due-date calendar</h1>
       <p style={{ margin: "0 0 10px", color: "#555", display: "flex", flexWrap: "wrap", gap: 14 }}>
         <span>Each bill is due on the tenant&apos;s own payday + grace days.</span>

@@ -1,8 +1,9 @@
-import Link from "next/link";
 import { getDb, schema } from "@/lib/db";
 import { collectionsToday } from "@/lib/clock";
 import { dayLabel } from "@/lib/format";
 import { Chat } from "./chat";
+
+export const metadata = { title: "Collections assistant" };
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +14,6 @@ export default function AgentPage() {
 
   return (
     <main style={{ maxWidth: 760, margin: "0 auto" }}>
-      <p style={{ margin: 0 }}>
-        <Link href="/owner">← Owner dashboard</Link>
-      </p>
       <h1 style={{ marginBottom: 4 }}>Collections assistant</h1>
       <p style={{ marginTop: 0, color: "#555" }}>
         {property.name} · {dayLabel(today)}

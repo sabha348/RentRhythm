@@ -5,7 +5,7 @@ import { findDeskInvoice } from "@/lib/desk";
 import { monthLabel } from "@/lib/invoicing";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Pay at the desk · RentRhythm" };
+export const metadata: Metadata = { title: "Pay at the desk" };
 
 // Full-screen page for a desk tablet or monitor: the tenant scans the QR and pays on their phone.
 export default async function DeskPage({ params }: { params: Promise<{ invoiceNumber: string }> }) {
@@ -16,7 +16,8 @@ export default async function DeskPage({ params }: { params: Promise<{ invoiceNu
   return (
     <main
       style={{
-        minHeight: "calc(100vh - 32px)",
+        minHeight: "100vh",
+        padding: 16,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",

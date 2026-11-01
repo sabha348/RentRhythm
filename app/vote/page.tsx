@@ -4,6 +4,8 @@ import { getDb, schema } from "@/lib/db";
 import { dayLabel } from "@/lib/format";
 import { getVotingWindow } from "@/lib/meals-db";
 
+export const metadata = { title: "Meal vote" };
+
 export const dynamic = "force-dynamic";
 
 export default function VotePickerPage() {

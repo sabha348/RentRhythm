@@ -44,7 +44,7 @@ export function VoteForm({
       {MEALS.map(({ meal, label }) => {
         const current = votes[meal];
         return (
-          <section key={meal} style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12 }}>
+          <section key={meal} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 12, background: "var(--surface)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
               <strong style={{ fontSize: 18 }}>{label}</strong>
               <span style={{ color: current === undefined ? "#b45309" : "#555" }} aria-live="polite">

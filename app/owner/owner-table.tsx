@@ -10,7 +10,6 @@ export type OwnerRow = {
   invoice: { status: string; invoiceNumber: string; total: number; dueDate: string; paidAt: string | null } | null;
 };
 
-const cell = { borderBottom: "1px solid #ddd", padding: "6px 10px", textAlign: "left" as const };
 const money = (n: number) => `$${n.toFixed(2)}`;
 function ordinal(n: number): string {
   if (n % 100 >= 11 && n % 100 <= 13) return `${n}th`;
@@ -33,11 +32,12 @@ export function OwnerTable({ month, currency, rows }: { month: string; currency:
   }
 
   return (
-    <table style={{ borderCollapse: "collapse", minWidth: 760 }}>
+    <div className="table-scroll">
+    <table className="data" style={{ minWidth: 820 }}>
       <thead>
         <tr>
           {["Tenant", "Room", "Payday", "Due date", "Bill", "Status", ""].map((h) => (
-            <th key={h} style={cell}>
+            <th key={h}>
               {h}
             </th>
           ))}
@@ -50,29 +50,25 @@ export function OwnerTable({ month, currency, rows }: { month: string; currency:
           return (
             <Fragment key={tenant.id}>
               <tr>
-                <td style={cell}>{tenant.name}</td>
-                <td style={cell}>{tenant.room}</td>
-                <td style={cell}>{ordinal(tenant.paydayDay)}</td>
-                <td style={cell}>{invoice?.dueDate ?? bill.dueDate}</td>
-                <td style={cell}>
+                <td>{tenant.name}</td>
+                <td>{tenant.room}</td>
+                <td>{ordinal(tenant.paydayDay)}</td>
+                <td>{invoice?.dueDate ?? bill.dueDate}</td>
+                <td>
                   {money(invoice?.total ?? bill.total)} {currency}
                 </td>
-                <td style={cell}>
-                  {invoice?.status === "PAID" || invoice?.status === "MARKED_AS_PAID" ? (
-                    <span title={invoice.invoiceNumber} style={{ color: "#15803d", fontWeight: 600 }}>
-                      ✓ PAID{invoice.paidAt && ` ${invoice.paidAt.slice(0, 10)}`}
-                    </span>
-                  ) : invoice ? (
-                    <span title={invoice.invoiceNumber}>{invoice.status}</span>
-                  ) : (
-                    <span style={{ color: "#888" }}>Not sent</span>
-                  )}
+                <td>
+                  <StatusBadge invoice={invoice} />
                 </td>
-                <td style={cell}>
+                <td>
                   <button onClick={() => setOpen(open === tenant.id ? null : tenant.id)}>
                     {open === tenant.id ? "Hide bill" : "Preview bill"}
                   </button>{" "}
-                  <button disabled={!!sent || sending === tenant.id} onClick={() => send(tenant.id)}>
+                  <button
+                    className={sent ? undefined : "primary"}
+                    disabled={!!sent || sending === tenant.id}
+                    onClick={() => send(tenant.id)}
+                  >
                     {sending === tenant.id ? "Sending…" : sent ? "Sent" : "Send via PayPal"}
                   </button>
                   {invoice && ["SENT", "UNPAID", "PARTIALLY_PAID"].includes(invoice.status) && (
@@ -87,7 +83,7 @@ export function OwnerTable({ month, currency, rows }: { month: string; currency:
               </tr>
               {result && (
                 <tr>
-                  <td colSpan={7} style={{ ...cell, color: result.ok ? "green" : "crimson" }}>
+                  <td colSpan={7} style={{ color: result.ok ? "var(--ok)" : "var(--bad)" }}>
                     {result.message}{" "}
                     {result.ok && result.payerLink && (
                       <a href={result.payerLink} target="_blank" rel="noreferrer">
@@ -99,7 +95,7 @@ export function OwnerTable({ month, currency, rows }: { month: string; currency:
               )}
               {open === tenant.id && (
                 <tr>
-                  <td colSpan={7} style={{ ...cell, background: "#fafafa" }}>
+                  <td colSpan={7} style={{ background: "#fafbfa" }}>
                     <table style={{ borderCollapse: "collapse" }}>
                       <tbody>
                         {bill.lines.map((l) => (
@@ -118,7 +114,7 @@ export function OwnerTable({ month, currency, rows }: { month: string; currency:
                         </tr>
                       </tbody>
                     </table>
-                    <small style={{ color: "#666" }}>
+                    <small className="muted">
                       Meals this month: {bill.meals.votedAte} voted &amp; eaten, {bill.meals.votedAbsent} voted but
                       absent (charged), {bill.meals.walkIns} walk-ins. Due {bill.dueDate}.
                       {invoice && invoice.total !== bill.total && " Sent invoice total differs from today's data."}
@@ -131,5 +127,25 @@ export function OwnerTable({ month, currency, rows }: { month: string; currency:
         })}
       </tbody>
     </table>
+    </div>
+  );
+}
+
+const PAID = ["PAID", "MARKED_AS_PAID"];
+
+function StatusBadge({ invoice }: { invoice: OwnerRow["invoice"] }) {
+  if (!invoice) return <span className="badge muted">Not sent</span>;
+  if (PAID.includes(invoice.status)) {
+    return (
+      <span className="badge ok" title={invoice.invoiceNumber}>
+        ✓ Paid{invoice.paidAt && ` ${invoice.paidAt.slice(5, 10)}`}
+      </span>
+    );
+  }
+  const tone = invoice.status === "CANCELLED" ? "bad" : invoice.status === "SENT" || invoice.status === "UNPAID" ? "info" : "muted";
+  return (
+    <span className={`badge ${tone}`} title={invoice.invoiceNumber}>
+      {invoice.status === "SENT" ? "Sent, unpaid" : invoice.status.charAt(0) + invoice.status.slice(1).toLowerCase()}
+    </span>
   );
 }
