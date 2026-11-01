@@ -142,7 +142,7 @@ Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 
 | Nov 11 | Submit |
 
 ## Current phase: Build step 4 (Bryntum calendar, Nov 6–7)
-Decisions: one event per invoice on its due date (payday in the label); Bryntum **trial** packages from public npm (`@bryntum/calendar-trial` + `@bryntum/calendar-react`), trial notice accepted, 45-day trial outlasts Dec 15; Month view by default; meal headcount for tomorrow only; read-only (no drag/edit). Gemini stays on the **free tier** (owner's decision): the agent must degrade gracefully when the daily quota is used up.
+Decisions: one event per invoice on its due date (payday in the label); Bryntum **trial** from public npm (`@bryntum/calendar` aliased to `@bryntum/calendar-trial`, loaded at runtime; no React wrapper), trial notice accepted, 45-day trial outlasts Dec 15; Month view by default; meal headcount for tomorrow only; read-only (no drag/edit). Gemini stays on the **free tier** (owner's decision): the agent must degrade gracefully when the daily quota is used up.
 Open item from step 3: the full chat-UI run of the demo prompt is pending Gemini quota.
 Work in this order, stopping after each to report:
 
