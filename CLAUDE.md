@@ -58,6 +58,7 @@ The approach was proven with throwaway scripts that no longer exist. The repo st
 - Webhook signature verification (`/v1/notifications/verify-webhook-signature`) must embed the **raw** body, not re-serialized JSON. PayPal answers 4xx (not `FAILURE`) when the transmission headers are malformed; treat that as "not genuine" (401), and only let 5xx/network errors become a 500 so PayPal retries.
 - The webhook handler trusts PayPal's API, not the payload: it re-fetches the invoice for status and `payments.transactions[].payment_date`. Event IDs go in `webhook_events` so redeliveries apply once.
 - In React effects, don't return `el.scrollIntoView(...)` from an arrow: newer Chromium returns a Promise and React crashes with "destroy is not a function".
+- **Hosting: Render free web service, not Vercel.** Vercel is serverless, so a SQLite file isn't shared between requests (webhook writes and page reads would hit different copies). Render free runs one long-lived instance, but its disk is wiped on sleep (15 min idle) and redeploys: `npm run start:render` runs `seed --if-empty`, which reseeds a fresh disk and **rebuilds real invoice records from PayPal** by invoice number (`RR-YYYYMM-T<id>-…`).
 - In the Claude Code cloud container, Node's built-in `fetch` ignores `HTTPS_PROXY`; run scripts with `NODE_USE_ENV_PROXY=1` there. Not needed locally or on Render.
 
 ## Rules

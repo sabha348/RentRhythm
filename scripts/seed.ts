@@ -6,12 +6,15 @@
 // Usage: npm run seed
 //        SEED_MONTH=2026-10 npm run seed
 // Existing real invoice records (source "paypal") are kept, since they mirror PayPal sandbox
-// invoices; set SEED_RESET_INVOICES=1 to drop them too.
+// invoices; set SEED_RESET_INVOICES=1 to drop them too. On a fresh disk (e.g. a Render free
+// instance after a restart) they are rebuilt from PayPal by invoice number (RR-YYYYMM-T<id>-...).
+// --if-empty: do nothing if the DB already has data (used on every server start).
 import { existsSync, rmSync } from "node:fs";
 import Database from "better-sqlite3";
 import { DB_PATH, getDb, schema } from "../lib/db";
 import { dueDateFor, nextMonth } from "../lib/billing";
 import { MEALS } from "../lib/db/schema";
+import { getInvoice, listAllInvoices, type PayPalInvoice } from "../lib/paypal";
 import { previewMonthlyBill } from "../lib/invoicing";
 import { addDays, localDate } from "../lib/meals";
 
@@ -105,7 +108,71 @@ function hasSourceColumn(db: Database.Database): boolean {
   return (db.prepare("PRAGMA table_info(invoices)").all() as { name: string }[]).some((c) => c.name === "source");
 }
 
-function main() {
+const VOID_STATUSES = ["DRAFT", "CANCELLED"];
+
+/**
+ * Rebuilds real invoice records from PayPal: our invoice numbers encode the month and tenant
+ * (RR-202610-T4-8489EE), and tenant IDs follow TENANTS order. Best effort: returns [] if PayPal
+ * can't be reached, so the app still starts.
+ */
+async function restoreInvoicesFromPayPal(): Promise<SavedInvoice[]> {
+  let invoices: PayPalInvoice[];
+  try {
+    invoices = await listAllInvoices();
+  } catch (err) {
+    console.warn(`Couldn't list PayPal invoices, starting without them: ${(err as Error).message}`);
+    return [];
+  }
+  const latest = new Map<string, PayPalInvoice>(); // tenant+month -> newest non-void invoice
+  for (const inv of invoices) {
+    const m = inv.detail.invoice_number.match(/^RR-(\d{4})(\d{2})-T(\d+)-/);
+    const tenant = m && TENANTS[Number(m[3]) - 1];
+    if (!m || !tenant || VOID_STATUSES.includes(inv.status)) continue;
+    const key = `${tenant.name}|${m[1]}-${m[2]}`;
+    const prev = latest.get(key);
+    if (!prev || (inv.detail.invoice_date ?? "") > (prev.detail.invoice_date ?? "")) latest.set(key, inv);
+  }
+  const restored: SavedInvoice[] = [];
+  for (const [key, inv] of latest) {
+    const [tenantName, month] = key.split("|");
+    const paid = inv.status === "PAID" || inv.status === "MARKED_AS_PAID";
+    // The list omits payment details, so fetch paid invoices for their payment date.
+    const paidDate = paid
+      ? ((await getInvoice(inv.id)).payments?.transactions ?? []).map((t) => t.payment_date).filter(Boolean).sort().at(-1)
+      : undefined;
+    restored.push({
+      tenantName,
+      month,
+      paypalInvoiceId: inv.id,
+      invoiceNumber: inv.detail.invoice_number,
+      status: inv.status,
+      total: Number(inv.amount?.value ?? 0),
+      dueDate: inv.detail.payment_term?.due_date ?? "",
+      paidAt: paid ? (paidDate?.slice(0, 10) ?? null) : null,
+      source: "paypal",
+      createdAt: `${inv.detail.invoice_date ?? month + "-01"} 00:00:00`,
+    });
+  }
+  return restored;
+}
+
+function hasData(): boolean {
+  if (!existsSync(DB_PATH)) return false;
+  const db = new Database(DB_PATH, { readonly: true });
+  try {
+    return Boolean(db.prepare("SELECT 1 FROM properties LIMIT 1").get());
+  } catch {
+    return false;
+  } finally {
+    db.close();
+  }
+}
+
+async function main() {
+  if (process.argv.includes("--if-empty") && hasData()) {
+    console.log(`${DB_PATH} already has data; not reseeding.`);
+    return;
+  }
   const today = localDate(new Date(), TIMEZONE);
   const tomorrow = addDays(today, 1);
   // Seeded payment history covers the 2 months before last month (last month is the live one).
@@ -118,7 +185,12 @@ function main() {
   const email = process.env.PAYPAL_BUYER_EMAIL;
   if (!email) throw new Error("Missing env var PAYPAL_BUYER_EMAIL (all seeded tenants use the sandbox buyer)");
 
-  const savedInvoices = saveInvoices();
+  let savedInvoices = saveInvoices();
+  let restoredFromPayPal = false;
+  if (!savedInvoices.length && process.env.SEED_RESET_INVOICES !== "1") {
+    savedInvoices = await restoreInvoicesFromPayPal();
+    restoredFromPayPal = savedInvoices.length > 0;
+  }
   for (const suffix of ["", "-wal", "-shm"]) rmSync(DB_PATH + suffix, { force: true });
   const db = getDb();
   const rand = mulberry32(20261028);
@@ -230,7 +302,13 @@ function main() {
 
   console.log(`Seeded ${DB_PATH}: history ${history[0]} → ${history.at(-1)} (${TIMEZONE}), today ${today}\n`);
   console.table(counts);
-  if (savedInvoices.length) console.log(`Kept ${savedInvoices.length} real invoice records (SEED_RESET_INVOICES=1 drops them).`);
+  if (savedInvoices.length) {
+    console.log(
+      restoredFromPayPal
+        ? `Restored ${savedInvoices.length} real invoice records from PayPal.`
+        : `Kept ${savedInvoices.length} real invoice records (SEED_RESET_INVOICES=1 drops them).`,
+    );
+  }
   console.log(`Seeded ${seededInvoices} paid history invoices for ${paidHistoryMonths.join(", ")}.\n`);
   console.log(`Billing summary for ${month}:`);
   console.table(rows);
@@ -238,4 +316,7 @@ function main() {
   console.table([...votesOn(today).map((r) => ({ day: "today", ...(r as object) })), ...votesOn(tomorrow).map((r) => ({ day: "tomorrow", ...(r as object) }))]);
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

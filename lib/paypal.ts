@@ -197,6 +197,17 @@ export async function getInvoice(invoiceId: string): Promise<PayPalInvoice> {
   return (await res.json()) as PayPalInvoice;
 }
 
+/** Every invoice on the account (all pages). */
+export async function listAllInvoices(): Promise<PayPalInvoice[]> {
+  const all: PayPalInvoice[] = [];
+  for (let page = 1; ; page++) {
+    const res = await paypalRequest("GET", `/v2/invoicing/invoices?page=${page}&page_size=100&total_required=true`);
+    const body = (await res.json()) as { items?: PayPalInvoice[]; total_pages?: number };
+    all.push(...(body.items ?? []));
+    if (!body.items?.length || page >= (body.total_pages ?? 1)) return all;
+  }
+}
+
 // ---------- Webhooks ----------
 
 /** The PayPal headers needed to verify a webhook delivery. */
