@@ -147,7 +147,7 @@ Open item from step 3: the full chat-UI run of the demo prompt is pending Gemini
 Work in this order, stopping after each to report:
 
 1. ✅ (React wrapper dropped: bundle OOM; Bryntum loads at runtime instead) Install the two Bryntum packages (pinned); `/owner/calendar` client-only proof page with a Month view and one test event; check build, screenshot, trial notice, page weight, and that the Render build still fits.
-2. `lib/calendar.ts` (pure, tested): one event per invoice on its due date ("Aarav · $358 · payday 1st"), coloured by status (paid green, not yet due blue, payday passed amber, overdue red), ⚠ for repeat late payers, seeded history included; tomorrow's meal headcount as an all-day item; tenants as a colour-coded filter list; click shows invoice details + link to `/owner`.
+2. ✅ `lib/calendar.ts` (pure, tested): one event per invoice on its due date ("Aarav · $358 · payday 1st"), coloured by status (paid green, not yet due blue, payday passed amber, overdue red), ⚠ for repeat late payers, seeded history included; tomorrow's meal headcount as an all-day item; tenants as a colour-coded filter list; click shows invoice details + link to `/owner`.
 3. Calendar auto-refresh (PAID turns green live), links to/from `/owner`, browser check with screenshots, deploy to Render.
 
 Out of scope: editing events, week/day planning, recurring paydays far ahead, multiple properties.
