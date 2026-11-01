@@ -61,6 +61,8 @@ The approach was proven with throwaway scripts that no longer exist. The repo st
 - **Hosting: Render free web service, not Vercel.** Vercel is serverless, so a SQLite file isn't shared between requests (webhook writes and page reads would hit different copies). Render free runs one long-lived instance, but its disk is wiped on sleep (15 min idle) and redeploys: `npm run start:render` runs `seed --if-empty`, which reseeds a fresh disk and **rebuilds real invoice records from PayPal** by invoice number (`RR-YYYYMM-T<id>-…`).
 - **Render deploy (live):** https://rentrhythm.onrender.com, service `srv-dbjh62oae00c73e7g82g` (free, Singapore), branch `build/foundation`, webhook `4GG07618MH855293X`. It was created from the public repo URL without Render's GitHub app, so **pushes don't auto-deploy**: trigger a deploy after pushing (Render MCP `trigger_deploy`, or connect GitHub in Render). Secrets are set in the Render dashboard by the owner, never via chat; `requireEnv` trims values because a pasted key with a stray newline gave PayPal OAuth 401.
 - The Claude Code cloud container can't reach `*.onrender.com` (egress policy); check the live app through Render's logs instead.
+- **Bryntum Calendar is NOT bundled.** The trial (`@bryntum/calendar` aliased to `@bryntum/calendar-trial`, public npm) is one 5 MB obfuscated file; importing it (or `@bryntum/calendar-react`) made `next build` use >13 GB and get OOM-killed. `scripts/copy-bryntum.mjs` (pre-dev/pre-build) copies the UMD bundle, CSS and fonts to `public/vendor/bryntum/` (gitignored) and `lib/bryntum.ts` loads them at runtime → `window.bryntum.calendar.Calendar`. Only **type** imports from the package. Build peak is now ~0.9 GB.
+- Bryntum needs all of: `calendar.css`, exactly one theme (`stockholm-light.css`), and FontAwesome (`fontawesome.css` + `solid.css`); its container needs a real height. An all-day event with only a `startDate` isn't drawn: give it `endDate` = next day. Trial shows a faint "Bryntum Trial Version" watermark.
 - In the Claude Code cloud container, Node's built-in `fetch` ignores `HTTPS_PROXY`; run scripts with `NODE_USE_ENV_PROXY=1` there. Not needed locally or on Render.
 
 ## Rules
@@ -90,7 +92,7 @@ DEMO_TODAY=            # optional YYYY-MM-DD: pins "today" for collections/agent
 - Vercel AI SDK + `@ai-sdk/google` + `@paypal/agent-toolkit`
 - Shared PayPal code in `lib/paypal.ts` (OAuth token, create/send/get invoice, generate QR); everything else imports from it
 - Agent code in `lib/agent.ts` (Gemini model + toolkit adapter + system prompt)
-- Bryntum Calendar (45-day trial) — later phase
+- Bryntum Calendar trial (loaded at runtime from `public/vendor/bryntum`, see gotchas)
 - Deploy on Render (later phase)
 
 ## Data model
@@ -139,8 +141,16 @@ Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 
 | Nov 10 | Record video |
 | Nov 11 | Submit |
 
-## Current phase: Build step 4 (Bryntum calendar, Nov 6–7) — not started
-Build steps 1–3 are complete (below). Open item from step 3: the full chat-UI run of the demo prompt is pending Gemini quota (and the owner's decision on Gemini billing for judges). Plan step 4's tasks with the owner before starting.
+## Current phase: Build step 4 (Bryntum calendar, Nov 6–7)
+Decisions: one event per invoice on its due date (payday in the label); Bryntum **trial** packages from public npm (`@bryntum/calendar-trial` + `@bryntum/calendar-react`), trial notice accepted, 45-day trial outlasts Dec 15; Month view by default; meal headcount for tomorrow only; read-only (no drag/edit). Gemini stays on the **free tier** (owner's decision): the agent must degrade gracefully when the daily quota is used up.
+Open item from step 3: the full chat-UI run of the demo prompt is pending Gemini quota.
+Work in this order, stopping after each to report:
+
+1. ✅ (React wrapper dropped: bundle OOM; Bryntum loads at runtime instead) Install the two Bryntum packages (pinned); `/owner/calendar` client-only proof page with a Month view and one test event; check build, screenshot, trial notice, page weight, and that the Render build still fits.
+2. `lib/calendar.ts` (pure, tested): one event per invoice on its due date ("Aarav · $358 · payday 1st"), coloured by status (paid green, not yet due blue, payday passed amber, overdue red), ⚠ for repeat late payers, seeded history included; tomorrow's meal headcount as an all-day item; tenants as a colour-coded filter list; click shows invoice details + link to `/owner`.
+3. Calendar auto-refresh (PAID turns green live), links to/from `/owner`, browser check with screenshots, deploy to Render.
+
+Out of scope: editing events, week/day planning, recurring paydays far ahead, multiple properties.
 
 ### Done: Build step 3 (owner agent chat + `INVOICING.INVOICE.PAID` webhook)
 Decisions: webhook reaches the app via an early basic Render deploy (accept SQLite resets on the free tier for now; reseed on start); agent gets one extra read-only tool over our DB; past invoice history is seeded and marked `source = 'seed'` (no PayPal invoice behind it), with Daniel the repeat late payer; chat is request/response showing each tool step.

@@ -15,10 +15,13 @@
     "test": "vitest run",
     "send-invoice": "tsx --env-file-if-exists=.env scripts/send-invoice.ts",
     "register-webhook": "tsx --env-file-if-exists=.env scripts/register-webhook.ts",
-    "start:render": "tsx scripts/seed.ts --if-empty && next start"
+    "start:render": "tsx scripts/seed.ts --if-empty && next start",
+    "predev": "node scripts/copy-bryntum.mjs",
+    "prebuild": "node scripts/copy-bryntum.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "4.0.109",
+    "@bryntum/calendar": "npm:@bryntum/calendar-trial@7.3.8",
     "@paypal/agent-toolkit": "1.11.0",
     "ai": "7.0.158",
     "better-sqlite3": "13.0.3",
