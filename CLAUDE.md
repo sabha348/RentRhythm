@@ -59,6 +59,8 @@ The approach was proven with throwaway scripts that no longer exist. The repo st
 - The webhook handler trusts PayPal's API, not the payload: it re-fetches the invoice for status and `payments.transactions[].payment_date`. Event IDs go in `webhook_events` so redeliveries apply once.
 - In React effects, don't return `el.scrollIntoView(...)` from an arrow: newer Chromium returns a Promise and React crashes with "destroy is not a function".
 - **Hosting: Render free web service, not Vercel.** Vercel is serverless, so a SQLite file isn't shared between requests (webhook writes and page reads would hit different copies). Render free runs one long-lived instance, but its disk is wiped on sleep (15 min idle) and redeploys: `npm run start:render` runs `seed --if-empty`, which reseeds a fresh disk and **rebuilds real invoice records from PayPal** by invoice number (`RR-YYYYMM-T<id>-…`).
+- **Render deploy (live):** https://rentrhythm.onrender.com, service `srv-dbjh62oae00c73e7g82g` (free, Singapore), branch `build/foundation`, webhook `4GG07618MH855293X`. It was created from the public repo URL without Render's GitHub app, so **pushes don't auto-deploy**: trigger a deploy after pushing (Render MCP `trigger_deploy`, or connect GitHub in Render). Secrets are set in the Render dashboard by the owner, never via chat; `requireEnv` trims values because a pasted key with a stray newline gave PayPal OAuth 401.
+- The Claude Code cloud container can't reach `*.onrender.com` (egress policy); check the live app through Render's logs instead.
 - In the Claude Code cloud container, Node's built-in `fetch` ignores `HTTPS_PROXY`; run scripts with `NODE_USE_ENV_PROXY=1` there. Not needed locally or on Render.
 
 ## Rules
@@ -137,14 +139,16 @@ Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 
 | Nov 10 | Record video |
 | Nov 11 | Submit |
 
-## Current phase: Build step 3 (owner agent chat + `INVOICING.INVOICE.PAID` webhook, Nov 3–5)
+## Current phase: Build step 4 (Bryntum calendar, Nov 6–7) — not started
+Build steps 1–3 are complete (below). Open item from step 3: the full chat-UI run of the demo prompt is pending Gemini quota (and the owner's decision on Gemini billing for judges). Plan step 4's tasks with the owner before starting.
+
+### Done: Build step 3 (owner agent chat + `INVOICING.INVOICE.PAID` webhook)
 Decisions: webhook reaches the app via an early basic Render deploy (accept SQLite resets on the free tier for now; reseed on start); agent gets one extra read-only tool over our DB; past invoice history is seeded and marked `source = 'seed'` (no PayPal invoice behind it), with Daniel the repeat late payer; chat is request/response showing each tool step.
-Work in this order, stopping after each to report:
 
 1. ✅ `lib/collections.ts` (pure, tested): per tenant, the current invoice's payday (passed?), due date, status, days overdue; late history (paid after due date, or unpaid past it); repeat late payer = late in ≥2 of the last 3 decided months. Invoice `source` column; seed 2 past months of paid history (Daniel late both times). Agent "today" in property timezone; `DEMO_TODAY=YYYY-MM-DD` overrides it for rehearsals.
 2. ✅ (live chat-UI run pending Gemini quota) `/owner/agent` chat: read-only `get_collections_overview` tool + the 4 PayPal tools; reminders only for unpaid invoices in our DB; suggested prompt; shows each tool step; friendly 429/503. Test the demo prompt against the sandbox.
 3. ✅ `app/api/paypal/webhook`: verify signature (`PAYPAL_WEBHOOK_ID`), `INVOICING.INVOICE.PAID` → status + `paidAt`, idempotent; `scripts/register-webhook.ts`; `/owner` auto-refresh + "Sync from PayPal" fallback. Tests with sample payloads.
-4. Basic Render deploy + live test: owner pays an invoice as the sandbox buyer; `/owner` turns PAID live.
+4. ✅ Basic Render deploy + live test (Nov 1: paid RR-202610-T1-17DBCC as the sandbox buyer; webhook → PAID on /owner): owner pays an invoice as the sandbox buyer; `/owner` turns PAID live.
 
 ### Done: Build step 2 (meal voting + cook headcount)
 Decisions: tenants pick their name (no login); voting for tomorrow closes at 21:00 in the property's timezone (default `Asia/Kolkata`); cook's serving log pre-ticks voters (untick no-shows) and adds walk-ins.
