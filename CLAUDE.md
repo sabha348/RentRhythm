@@ -141,14 +141,15 @@ Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 
 | Nov 10 | Record video |
 | Nov 11 | Submit |
 
-## Current phase: Build step 4 (Bryntum calendar, Nov 6–7)
+## Current phase: Build step 5 (UI polish, README, final deploy, Nov 8–9) — not started
+Build steps 1–4 are complete (below); the app is live on Render. Open item from step 3: the full chat-UI run of the demo prompt is pending Gemini quota (free tier by the owner's choice). Plan step 5's tasks with the owner before starting.
+
+### Done: Build step 4 (Bryntum calendar)
 Decisions: one event per invoice on its due date (payday in the label); Bryntum **trial** from public npm (`@bryntum/calendar` aliased to `@bryntum/calendar-trial`, loaded at runtime; no React wrapper), trial notice accepted, 45-day trial outlasts Dec 15; Month view by default; meal headcount for tomorrow only; read-only (no drag/edit). Gemini stays on the **free tier** (owner's decision): the agent must degrade gracefully when the daily quota is used up.
-Open item from step 3: the full chat-UI run of the demo prompt is pending Gemini quota.
-Work in this order, stopping after each to report:
 
 1. ✅ (React wrapper dropped: bundle OOM; Bryntum loads at runtime instead) Install the two Bryntum packages (pinned); `/owner/calendar` client-only proof page with a Month view and one test event; check build, screenshot, trial notice, page weight, and that the Render build still fits.
 2. ✅ `lib/calendar.ts` (pure, tested): one event per invoice on its due date ("Aarav · $358 · payday 1st"), coloured by status (paid green, not yet due blue, payday passed amber, overdue red), ⚠ for repeat late payers, seeded history included; tomorrow's meal headcount as an all-day item; tenants as a colour-coded filter list; click shows invoice details + link to `/owner`.
-3. Calendar auto-refresh (PAID turns green live), links to/from `/owner`, browser check with screenshots, deploy to Render.
+3. ✅ Calendar auto-refresh (PAID turns green live), links to/from `/owner`, browser check with screenshots, deploy to Render.
 
 Out of scope: editing events, week/day planning, recurring paydays far ahead, multiple properties.
 
