@@ -9,6 +9,8 @@ type Props = CalendarData & { today: string };
 
 export default function OwnerCalendar({ today, resources, events }: Props) {
   const container = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<Calendar | null>(null);
+  const shown = useRef(JSON.stringify(events));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,15 +46,26 @@ export default function OwnerCalendar({ today, resources, events }: Props) {
             },
           },
         });
+        calendarRef.current = calendar;
       })
       .catch((err: Error) => setError(err.message));
     return () => {
       cancelled = true;
+      calendarRef.current = null;
       calendar?.destroy();
     };
-    // Built once per mount; live updates come in step 4.3.
+    // Built once per mount; later data arrives through the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // The page re-renders every few seconds (AutoRefresh). Swap the events in place so the month
+  // being viewed and the tenant filters stay put; a PAID webhook turns its event green.
+  useEffect(() => {
+    const json = JSON.stringify(events);
+    if (!calendarRef.current || json === shown.current) return;
+    shown.current = json;
+    calendarRef.current.events = events;
+  }, [events]);
 
   if (error) return <p style={{ color: "crimson" }}>{error}</p>;
   return <div ref={container} style={{ height: "100%" }} />;

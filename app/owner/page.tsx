@@ -58,7 +58,8 @@ export default async function OwnerPage({ searchParams }: { searchParams: Promis
   return (
     <main>
       <p>
-        <Link href="/">RentRhythm</Link> · <Link href="/owner/agent">Collections assistant →</Link>
+        <Link href="/">RentRhythm</Link> · <Link href="/owner/calendar">Due-date calendar →</Link> ·{" "}
+        <Link href="/owner/agent">Collections assistant →</Link>
       </p>
       <h1>{property.name}: owner</h1>
       <form method="get" style={{ marginBottom: 16 }}>

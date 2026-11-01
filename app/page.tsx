@@ -9,6 +9,9 @@ export default function Home() {
         <Link href="/owner">Owner dashboard →</Link>
       </p>
       <p>
+        <Link href="/owner/calendar">Due-date calendar →</Link>
+      </p>
+      <p>
         <Link href="/vote">Vote for tomorrow&apos;s meals →</Link>
       </p>
       <p>
