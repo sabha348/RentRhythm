@@ -17,9 +17,21 @@ export class PayPalError extends Error {
 }
 
 function requireEnv(name: string): string {
-  const value = process.env[name];
+  // Trim: values pasted into hosting dashboards often pick up a stray space or newline.
+  const value = process.env[name]?.trim();
   if (!value) throw new Error(`Missing env var ${name} (see .env.example)`);
   return value;
+}
+
+/**
+ * Safe-to-log fingerprint of the configured credentials, for diagnosing OAuth failures on a host:
+ * the client ID's last 4 characters (client IDs are public) and only the lengths of both values.
+ */
+function credentialHint(): string {
+  const id = process.env.PAYPAL_CLIENT_ID ?? "";
+  const secret = process.env.PAYPAL_CLIENT_SECRET ?? "";
+  const ws = (v: string) => (v !== v.trim() ? " (had surrounding whitespace)" : "");
+  return `client ID …${id.trim().slice(-4)} (${id.trim().length} chars)${ws(id)}, secret ${secret.trim().length} chars${ws(secret)}`;
 }
 
 // ---------- Auth ----------
@@ -42,7 +54,7 @@ export async function getAccessToken(): Promise<string> {
   });
   const body = await res.json().catch(() => null);
   if (!res.ok || !body?.access_token) {
-    throw new PayPalError(`PayPal OAuth failed (${res.status})`, res.status, body);
+    throw new PayPalError(`PayPal OAuth failed (${res.status}) with ${credentialHint()}`, res.status, body);
   }
   // Refresh a minute before PayPal's expiry.
   cachedToken = {
