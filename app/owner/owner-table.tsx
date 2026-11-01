@@ -75,6 +75,14 @@ export function OwnerTable({ month, currency, rows }: { month: string; currency:
                   <button disabled={!!sent || sending === tenant.id} onClick={() => send(tenant.id)}>
                     {sending === tenant.id ? "Sending…" : sent ? "Sent" : "Send via PayPal"}
                   </button>
+                  {invoice && ["SENT", "UNPAID", "PARTIALLY_PAID"].includes(invoice.status) && (
+                    <>
+                      {" "}
+                      <a href={`/desk/${encodeURIComponent(invoice.invoiceNumber)}`} target="_blank" rel="noreferrer">
+                        Show pay QR
+                      </a>
+                    </>
+                  )}
                 </td>
               </tr>
               {result && (

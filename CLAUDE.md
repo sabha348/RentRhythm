@@ -47,7 +47,7 @@ The approach was proven with throwaway scripts that no longer exist. The repo st
 - Toolkit hard-codes the legacy host `api.sandbox.paypal.com`; `lib/agent.ts` repoints `toolkit.client._baseUrl` to `api-m.sandbox.paypal.com` (the other host is blocked in the cloud sandbox).
 - Gemini: default model is `gemini-3.6-flash` (from the `GEMINI_MODEL` env var). `gemini-3.8-flash` returned repeated 503 overload errors on the free tier. Handle 429/503 gracefully with a friendly message.
 - PayPal sends **no content** on a successful invoice reminder; empty result = success.
-- Invoice QR endpoint returns a **multipart** body wrapping a base64 PNG. Parse only the text between the blank line and the closing boundary. Never pass base64 to the model; save to a file and give it the path.
+- Invoice QR endpoint returns a **multipart** body wrapping a base64 PNG, and rejects `width`/`height` above **500** (400 "integer value of a field is too large"). The QR encodes `…/invoice/payerView/details/<invoice id>?qr=1`. Parse only the text between the blank line and the closing boundary. Never pass base64 to the model; save to a file and give it the path.
 - Reminders only work on **unpaid** invoices.
 - Invoice numbers must be unique per PayPal account.
 - The sandbox has one buyer account, so all seeded tenants use `PAYPAL_BUYER_EMAIL`.
@@ -141,8 +141,15 @@ Property "Sunrise Co-Living"; 6 tenants with paydays 1st, 5th, 7th, 10th, 15th, 
 | Nov 10 | Record video |
 | Nov 11 | Submit |
 
-## Current phase: Build step 5 (UI polish, README, final deploy, Nov 8–9) — not started
-Build steps 1–4 are complete (below); the app is live on Render. Open item from step 3: the full chat-UI run of the demo prompt is pending Gemini quota (free tier by the owner's choice). Plan step 5's tasks with the owner before starting.
+## Current phase: Build step 5 (desk QR, UI polish, README, release, Nov 8–9)
+Build steps 1–4 are complete (below); the app is live on Render. Open item from step 3: the full chat-UI run of the demo prompt is pending Gemini quota (free tier by the owner's choice).
+Decisions: desk QR is a dedicated full-screen page; plain CSS (no new UI deps); release via PR `build/foundation` → `main` (owner merges, then switches Render's branch to `main` in the dashboard and ideally connects GitHub for auto-deploy); recording-day data keeps the current invoices (send Lucas's and Emma's October bills, pay Sofia's beforehand, leave Daniel and Priya for the agent scene). Repo-name typo (`RentRythm`) left as is unless the owner renames it.
+Work in this order, stopping after each to report:
+
+1. ✅ Desk QR (scene 2:15): "Show pay QR" on `/owner` for sent unpaid invoices → full-screen `/desk/[invoiceNumber]` (tenant, amount, big PayPal QR via an image route that proxies PayPal's QR; no file on disk); auto-refresh turns it into "✓ Paid" when the webhook lands. Verify the QR decodes to the payer link.
+2. UI polish: shared header nav, consistent styles and status badges, page titles, loading/empty/error states, landing page for judges (problem, pages, "start here", cold-start note); desktop + phone screenshots of every page.
+3. README (features, architecture diagram, AI tools/models and how they're used, setup + sandbox gotchas, limitations) and `docs/demo-runbook.md` (recording-day choreography, exact prompts, resets).
+4. Release: PR to `main`, Render on `main`, final check via Render logs, one live agent-chat run when quota allows.
 
 ### Done: Build step 4 (Bryntum calendar)
 Decisions: one event per invoice on its due date (payday in the label); Bryntum **trial** from public npm (`@bryntum/calendar` aliased to `@bryntum/calendar-trial`, loaded at runtime; no React wrapper), trial notice accepted, 45-day trial outlasts Dec 15; Month view by default; meal headcount for tomorrow only; read-only (no drag/edit). Gemini stays on the **free tier** (owner's decision): the agent must degrade gracefully when the daily quota is used up.
