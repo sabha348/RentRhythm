@@ -1,32 +1,23 @@
 # Demo video: narration script and recording guide
 
-Final video: **under 3 minutes**, your face in a panel at the side, the app filling the rest. You record your
-narration (one clip per scene) plus two short screen clips of the payment moments; Claude records the other app
-footage, times it to your clips, and assembles the video with titles and captions. Follow
-`docs/demo-runbook.md` for the app state on recording day (Nov 10).
+Final video: **under 3 minutes**: the app on the left, your face in a panel on the right, captions of your
+narration along the bottom. **You record only your face and voice** (one clip per scene). Claude records every
+screen moment on the live app, including the two payments (made as the sandbox buyer in a phone-sized browser,
+with PayPal's real webhook turning the bill Paid), times the footage to your clips, and assembles the video.
 
-## What to record
+## What to record: seven narration clips (`scene1.mp4` … `scene7.mp4`)
 
-**1. Seven narration clips** (`scene1.mp4` … `scene7.mp4`)
 - Landscape, 1280×720 or 1920×1080, 30 fps. Your phone or laptop camera is fine.
-- Head and shoulders, centred, plain background, light in front of you (not a window behind you).
+- Head and shoulders, centred in the middle third of the frame (the panel is cropped from the centre), plain
+  background, light in front of you (not a window behind you).
 - Quiet room; a headset or earphone mic sounds better than the laptop mic.
 - One clip per scene. **Wait one second before you start speaking and after you finish.** Retakes are fine; send
   the best take of each.
-- Speak at a relaxed pace. Each scene has a target length; within ±5 seconds is fine.
+- Speak at a relaxed pace; each scene has a target length, and within ±5 seconds is fine. Stay close to the
+  script (captions follow what you actually say).
 - Reading from a screen just below the camera is fine; glance at the lens now and then.
 
-**2. Two screen clips of the payment moments** (they need your sandbox buyer login)
-- `pay-priya.mp4` (scene 4): screen-record `/owner` (October) → **Show pay QR** on Priya → pay on your phone as the
-  sandbox buyer → back on `/owner` until her badge turns **✓ Paid**. A phone screen recording of the PayPal payment
-  is a nice extra.
-- `pay-desk.mp4` (scene 6): screen-record the desk screen for **Daniel** (`/owner` → **Show pay QR**) while you scan
-  and pay on your phone, until it flips to **"Paid, thank you!"**.
-- Any screen recorder works: QuickTime (Mac), Xbox Game Bar (Windows: Win+Alt+R), OBS, or the phone's built-in one.
-  No narration needed in these; your voice comes from the scene clips.
-
-Upload everything here when done. Claude records the rest of the app footage (calendar, voting, kitchen, bill
-preview, assistant, architecture) and assembles the video.
+Upload the seven clips here when done.
 
 ## Narration script
 
@@ -56,7 +47,7 @@ preview, assistant, architecture) and assembles the video.
 > the AC. Here's Priya's. She pays it with PayPal, and as soon as PayPal's webhook arrives, her bill turns paid,
 > here and on the calendar. Nobody marks anything by hand.
 
-*On screen: Priya's bill preview → your `pay-priya.mp4` clip → badge turns ✓ Paid.*
+*On screen: Priya's bill preview → PayPal checkout at phone size → her badge turns ✓ Paid.*
 
 ### Scene 5 · The collections assistant (~40 s)
 > Now the part owners hate: chasing. I just ask: "Who's due this week? Remind anyone whose payday has passed."
@@ -70,7 +61,7 @@ preview, assistant, architecture) and assembles the video.
 > Some tenants still prefer to pay in person. At the desk, I show Daniel his bill as a PayPal QR code. He scans it,
 > pays on his phone, and the screen says thank you.
 
-*On screen: your `pay-desk.mp4` clip.*
+*On screen: Daniel's desk QR → PayPal checkout at phone size → the desk screen flips to "Paid, thank you!".*
 
 ### Scene 7 · How it's built (~20 s)
 > RentRhythm is built on PayPal Invoicing and webhooks, the PayPal Agent Toolkit with Gemini, and a Bryntum
@@ -82,5 +73,5 @@ preview, assistant, architecture) and assembles the video.
 ## Layout
 
 1920×1080 canvas: the app on the left (about three-quarters of the width), your video in a panel on the right
-with your name under it, a short scene title at the top, and captions of your narration along the bottom. No
+(no name or role tags), a short scene title at the top, and captions of your narration along the bottom. No
 music, so nothing copyrighted.
