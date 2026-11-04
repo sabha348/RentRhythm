@@ -214,7 +214,7 @@ export function summarizeStep(call: ToolCallLog): AgentStep {
 }
 
 /** Longest the owner waits for an answer before getting a "try again" message. */
-export const AGENT_DEADLINE_MS = 90_000;
+export const AGENT_DEADLINE_MS = 150_000;
 
 export async function runAgent(
   request: string | ModelMessage[],
@@ -231,7 +231,7 @@ export async function runAgent(
       tools: buildPayPalTools(opts.onToolCall),
       stopWhen: stepCountIs(12),
       // One retry covers a brief blip; more would wait out Gemini's retry delay (hours on a quota 429).
-      timeout: { totalMs: AGENT_DEADLINE_MS, stepMs: 45_000 },
+      timeout: { totalMs: AGENT_DEADLINE_MS, stepMs: 60_000 },
       maxRetries: 1,
       abortSignal: deadline,
     });

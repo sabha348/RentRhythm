@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { askAgent, type ChatMessage } from "./actions";
+import type { AgentStep } from "@/lib/agent";
+import { pollAgent, startAgent, type ChatMessage } from "./actions";
+
+const POLL_MS = 2000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const SUGGESTIONS = [
   "Who's due this week? Remind anyone whose payday has passed.",
@@ -13,12 +17,13 @@ export function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [pending, startTransition] = useTransition();
+  const [liveSteps, setLiveSteps] = useState<AgentStep[]>([]);
   const bottom = useRef<HTMLDivElement>(null);
 
   // Braces matter: newer browsers return a Promise from scrollIntoView, and an effect must not return one.
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, pending]);
+  }, [messages, pending, liveSteps]);
 
   function send(text: string) {
     const content = text.trim();
@@ -27,9 +32,35 @@ export function Chat() {
     setMessages(history);
     setInput("");
     startTransition(async () => {
-      const reply = await askAgent(history);
+      setLiveSteps([]);
+      const reply = await waitForReply(history);
+      setLiveSteps([]);
       setMessages((m) => [...m, reply]);
     });
+  }
+
+  // Each request stays short (Render's proxy drops ones over ~30 s): start a job, then poll it.
+  async function waitForReply(history: ChatMessage[]): Promise<ChatMessage> {
+    const failed = (content: string): ChatMessage => ({ role: "assistant", content, error: true });
+    try {
+      const jobId = await startAgent(history);
+      for (let misses = 0; ; ) {
+        await sleep(POLL_MS);
+        let poll;
+        try {
+          poll = await pollAgent(jobId);
+          misses = 0;
+        } catch {
+          if (++misses >= 5) return failed("Lost touch with the server. Please try again.");
+          continue;
+        }
+        if (poll.status === "done") return poll.reply;
+        if (poll.status === "missing") return failed("The server restarted while the assistant was working. Please try again.");
+        setLiveSteps(poll.steps);
+      }
+    } catch {
+      return failed("Couldn't reach the assistant. Please try again.");
+    }
   }
 
   return (
@@ -70,7 +101,20 @@ export function Chat() {
         ),
       )}
 
-      {pending && <p style={{ color: "#6b7280", margin: 0 }}>Checking paydays and invoices…</p>}
+      {pending && (
+        <div style={{ color: "#6b7280" }}>
+          {liveSteps.length > 0 && (
+            <ol style={{ margin: "0 0 6px", paddingLeft: 20, fontSize: 14 }}>
+              {liveSteps.map((s, j) => (
+                <li key={j}>
+                  {s.ok ? "✓" : "⚠"} {s.summary}
+                </li>
+              ))}
+            </ol>
+          )}
+          <p style={{ margin: 0 }}>Checking paydays and invoices…</p>
+        </div>
+      )}
       <div ref={bottom} />
 
       <form
