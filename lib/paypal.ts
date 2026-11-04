@@ -16,7 +16,7 @@ export class PayPalError extends Error {
   }
 }
 
-function requireEnv(name: string): string {
+export function requireEnv(name: string): string {
   // Trim: values pasted into hosting dashboards often pick up a stray space or newline.
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`Missing env var ${name} (see .env.example)`);
