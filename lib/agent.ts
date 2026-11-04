@@ -213,22 +213,33 @@ export function summarizeStep(call: ToolCallLog): AgentStep {
   }
 }
 
+/** Longest the owner waits for an answer before getting a "try again" message. */
+export const AGENT_DEADLINE_MS = 90_000;
+
 export async function runAgent(
   request: string | ModelMessage[],
   opts: { onToolCall?: (call: ToolCallLog) => void } = {},
 ) {
+  // Hard deadline for the whole request. The SDK's own timeout doesn't cover the wait before a
+  // retry, and on a Gemini 503 that wait can be minutes, so the page would sit on "Checking…".
+  const deadline = AbortSignal.timeout(AGENT_DEADLINE_MS);
   try {
-    const result = await generateText({
+    const run = generateText({
       model: geminiModel(),
       system: systemPrompt(agentToday()),
       ...(typeof request === "string" ? { prompt: request } : { messages: request }),
       tools: buildPayPalTools(opts.onToolCall),
       stopWhen: stepCountIs(12),
-      // Never leave the owner (or a demo) hanging on a stalled model call. One retry covers a
-      // transient 503; more would wait out Gemini's retry delay, which can be hours on a quota 429.
-      timeout: { totalMs: 90_000, stepMs: 45_000 },
+      // One retry covers a brief blip; more would wait out Gemini's retry delay (hours on a quota 429).
+      timeout: { totalMs: AGENT_DEADLINE_MS, stepMs: 45_000 },
       maxRetries: 1,
+      abortSignal: deadline,
     });
+    // Belt and braces: settle at the deadline even if something ignores the abort signal.
+    const stop = new Promise<never>((_, reject) =>
+      deadline.addEventListener("abort", () => reject(new Error("Agent request timed out")), { once: true }),
+    );
+    const result = await Promise.race([run, stop]);
     return { ok: true as const, text: result.text };
   } catch (err) {
     const friendly = friendlyAgentError(err);
