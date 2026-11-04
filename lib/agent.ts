@@ -9,7 +9,7 @@ import { collectionsToday } from "./clock";
 import { UNPAID_STATUSES, weekRange } from "./collections";
 import { loadCollections } from "./collections-db";
 import { getDb, schema } from "./db";
-import { getInvoice, PAYPAL_API_BASE, saveInvoiceQr } from "./paypal";
+import { getInvoice, PAYPAL_API_BASE, requireEnv, saveInvoiceQr } from "./paypal";
 
 // The ONLY toolkit actions the agent gets. Never add money-moving tools (payouts, refunds, captures).
 const ALLOWED_ACTIONS = { list: true, get: true, sendReminder: true, generateQRC: true };
@@ -39,8 +39,8 @@ function parseToolOutput(raw: unknown): unknown {
  */
 export function buildPayPalTools(onToolCall?: (call: ToolCallLog) => void): ToolSet {
   const toolkit = new PayPalAgentToolkit({
-    clientId: process.env.PAYPAL_CLIENT_ID!,
-    clientSecret: process.env.PAYPAL_CLIENT_SECRET!,
+    clientId: requireEnv("PAYPAL_CLIENT_ID"), // trimmed, like lib/paypal.ts: Render's value has a stray newline
+    clientSecret: requireEnv("PAYPAL_CLIENT_SECRET"),
     // The toolkit defaults to PRODUCTION unless sandbox is set.
     configuration: { actions: { invoices: ALLOWED_ACTIONS }, context: { sandbox: true } },
   });
